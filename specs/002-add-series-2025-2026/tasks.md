@@ -43,8 +43,8 @@ Mesmo projeto Python único de 001: `src/collector/`, `src/storage/`,
 **Objetivo**: registro de torneios + escopo de torneio no storage — pré-requisito
 de toda user story desta feature.
 
-- [ ] T003 [P] Implementar `src/collector/tournaments.py`: dataclasses `Fase` (phase_id, nome, gera_classificacao) e `Torneio` (tournament_id, slug, nome, modo, fases), com a tupla `TORNEIOS` contendo os 5 torneios e 8 fases de `contracts/tournament-registry.md`
-- [ ] T004 [P] Teste unitário: todo `tournament_id`/`phase_id` em `TORNEIOS` é único, todo torneio tem pelo menos 1 fase, `modo` é sempre `"recorrente"` ou `"historico"`, em `tests/unit/collector/test_tournaments.py`
+- [X] T003 [P] Implementar `src/collector/tournaments.py`: dataclasses `Fase` (phase_id, nome, gera_classificacao) e `Torneio` (tournament_id, slug, nome, modo, fases), com a tupla `TORNEIOS` contendo os 5 torneios e 8 fases de `contracts/tournament-registry.md`
+- [X] T004 [P] Teste unitário: todo `tournament_id`/`phase_id` em `TORNEIOS` é único, todo torneio tem pelo menos 1 fase, `modo` é sempre `"recorrente"` ou `"historico"`, em `tests/unit/collector/test_tournaments.py`
 - [ ] T005 Migration `src/storage/migrations/0004_tournament_scoping.sql`: `ALTER TABLE teams/players ADD COLUMN tournament_id uuid`, backfill das linhas existentes do Ouro 2026 (`tournament_id = '5bf23f0b-6768-46ec-bcc1-4cd698105413'`), depois `SET NOT NULL`, mais índices `idx_teams_tournament_id`/`idx_players_tournament_id` (data-model.md)
 - [ ] T006 Atualizar `src/storage/upserts.py`: `upsert_team(team, tournament_id)` e `upsert_player(player, tournament_id)` passam a gravar a coluna nova — depende de T005
 - [ ] T007 [P] Teste unitário: `upsert_team`/`upsert_player` gravam e preservam `tournament_id` em updates subsequentes, em `tests/unit/storage/test_upserts.py` — depende de T006
