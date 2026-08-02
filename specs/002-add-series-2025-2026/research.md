@@ -33,6 +33,13 @@ torneio. Com 5 torneios simultâneos, isso mistura times/jogadores de temporadas
 séries diferentes na mesma resposta. Uma coluna `tournament_id` filtrável resolve
 isso sem exigir mudança de chave primária.
 
+**Achado de implementação (2026-08-02)**: `psycopg2` manda uma `list[str]`
+Python como um array `text[]` por padrão; `phase_id = ANY(%s)` contra uma
+coluna `uuid` falha com `UndefinedFunction: operator does not exist: uuid =
+text`. Corrigido com cast explícito `phase_id = ANY(%s::uuid[])` em
+`storage/reads.py` — confirmado contra o Supabase real via
+`tests/unit/storage/test_reads.py`.
+
 **Alternatives considered**: Chave primária composta `(id, tournament_id)` —
 rejeitada por não haver evidência de colisão de id entre torneios (ver acima) e por
 adicionar complexidade (FKs compostas em `players.team_id`, `player_game_stats`,
