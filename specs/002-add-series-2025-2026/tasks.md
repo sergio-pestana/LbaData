@@ -127,7 +127,7 @@ a seleção e mostrou os times/jogadores reais de Bronze 2025 (não os do Ouro
 
 **Independent Test**: com fixtures de dois torneios contendo um time com o mesmo nome (ids e `tournament_id` diferentes), confirmar que as estatísticas de cada torneio permanecem completamente separadas.
 
-- [ ] T025 [P] [US4] Teste de integração (unit, com fixtures sintéticas): dois torneios com um time/jogador de mesmo nome mas `id`/`tournament_id` diferentes — `get_teams`/`get_players`/`get_player_game_stats`/`get_team_game_stats` de um torneio nunca incluem linhas do outro, em `tests/unit/storage/test_multi_tournament_isolation.py`
+- [X] T025 [P] [US4] Teste de integração (unit, com fixtures sintéticas): dois torneios com um time/jogador de mesmo nome mas `id`/`tournament_id` diferentes — `get_teams`/`get_players`/`get_player_game_stats`/`get_team_game_stats` de um torneio nunca incluem linhas do outro, em `tests/unit/storage/test_multi_tournament_isolation.py` (cenário adversarial: estatísticas propositalmente diferentes entre os dois — 10 vs. 99 pontos — para que qualquer vazamento de filtro apareça como falha óbvia, não como coincidência)
 
 **Checkpoint**: garantia estrutural de US4 comprovada por teste, não apenas por inspeção manual.
 
