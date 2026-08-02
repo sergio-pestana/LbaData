@@ -83,9 +83,9 @@ def collect_round(phase_id: str, tournament_id: str, client: GoChampsClient | No
         tournament_payload = client.get(f"/v1/tournaments/{tournament_id}")
         tournament = parse_tournament(tournament_payload)
         for team in tournament["teams"]:
-            upsert_team(team, conn=conn)
+            upsert_team(team, tournament_id, conn=conn)
         for player in tournament["players"]:
-            upsert_player(player, conn=conn)
+            upsert_player(player, tournament_id, conn=conn)
         logger.info(
             "Roster sincronizado: %d times, %d jogadores",
             len(tournament["teams"]), len(tournament["players"]),
