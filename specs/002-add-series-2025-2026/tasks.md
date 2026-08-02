@@ -137,7 +137,7 @@ a seleção e mostrou os times/jogadores reais de Bronze 2025 (não os do Ouro
 
 - [X] T026 [P] Atualizar `README.md` documentando os modos `--torneio <slug>` e `--modo recorrente` de `collector.run` (README.md não existia ainda no repositório — T048 de 001 nunca tinha sido feito; criado do zero cobrindo setup, os 3 modos de coleta, dashboard e testes)
 - [ ] T027 [P] Rodar `quickstart.md` (passos 1-5) ponta a ponta e corrigir qualquer lacuna encontrada
-- [ ] T028 [P] Auditar logs do coletor multi-torneio: confirmar que toda falha por fase/torneio identifica explicitamente qual torneio/fase falhou (Princípio II)
+- [X] T028 [P] Auditar logs do coletor multi-torneio: confirmar que toda falha por fase/torneio identifica explicitamente qual torneio/fase falhou (Princípio II) — achado: o log de falha de súmula por jogo (`run.py`, dentro de `collect_round`) citava só o `game_id`, sem o `phase_id`; corrigido para incluir os dois, já que numa execução `--modo recorrente` processando múltiplos torneios em sequência isso importa para saber de qual fase/torneio veio a falha sem precisar cruzar com o banco
 - [ ] T029 Executar a carga histórica real dos 3 torneios 2025 (6 execuções de fase) contra o Supabase e confirmar SC-001/SC-002 do spec.md
 
 ---

@@ -128,8 +128,8 @@ def collect_round(
                     upsert_team_game_stat(row, conn=conn)
             except UnexpectedPayloadShape as exc:
                 logger.error(
-                    "Falha ao processar súmula do jogo %s: %s (contexto=%s)",
-                    game["id"], exc, exc.context,
+                    "Falha ao processar súmula do jogo %s (fase %s): %s (contexto=%s)",
+                    game["id"], phase_id, exc, exc.context,
                 )
                 continue
 
