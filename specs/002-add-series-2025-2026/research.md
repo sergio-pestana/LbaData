@@ -128,6 +128,20 @@ corretos e completos) — mas a classificação daquele torneio específico fica
 sem dado até isso ser investigado. Rastrear como follow-up antes de fechar a
 Polish (T029).
 
+**Atualização (2026-08-02, carga real completa dos 3 torneios 2025)**: o
+mesmo erro `elimination_stats não tem os critérios 'overall' esperados`
+ocorreu identicamente nas fases de Classificação de **Ouro 2025 e Prata
+2025** também — confirma que é sistêmico às três séries de 2025 (não uma
+particularidade de Bronze), provavelmente porque a fonte usa outro
+`ranking_criteria` (ou nenhum) para torneios dessa temporada. Times (10 em
+cada torneio), jogadores (193/191/220) e jogos de todas as 6 fases (45+15,
+46+15, 45+15) foram coletados corretamente nos 3 torneios — só a
+classificação ficou sem dado nos 3. Também apareceram algumas falhas
+pontuais e esperadas de súmula individual (`Campo essencial ausente:
+'minutes_played'`, 2 jogos em Ouro 2025, 3 em Prata 2025) — comportamento
+correto do Princípio II: aquele jogo específico falha e é logado, os demais
+jogos da fase continuam sendo processados normalmente.
+
 ## 5. Cadência de coleta: recorrente vs. carga histórica única — RESOLVIDO
 
 **Decision**: Torneios com `modo="recorrente"` (Ouro 2026, Prata/Bronze 2026) são

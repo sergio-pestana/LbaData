@@ -136,9 +136,9 @@ a seleção e mostrou os times/jogadores reais de Bronze 2025 (não os do Ouro
 ## Phase Final: Polish & Cross-Cutting Concerns
 
 - [X] T026 [P] Atualizar `README.md` documentando os modos `--torneio <slug>` e `--modo recorrente` de `collector.run` (README.md não existia ainda no repositório — T048 de 001 nunca tinha sido feito; criado do zero cobrindo setup, os 3 modos de coleta, dashboard e testes)
-- [ ] T027 [P] Rodar `quickstart.md` (passos 1-5) ponta a ponta e corrigir qualquer lacuna encontrada
+- [X] T027 [P] Rodar `quickstart.md` (passos 1-5) ponta a ponta e corrigir qualquer lacuna encontrada — migração aplicada, backfill dos 3 torneios 2025 executado contra a API real, dashboard validado no navegador (seletor + 3 páginas), suíte de testes verde
 - [X] T028 [P] Auditar logs do coletor multi-torneio: confirmar que toda falha por fase/torneio identifica explicitamente qual torneio/fase falhou (Princípio II) — achado: o log de falha de súmula por jogo (`run.py`, dentro de `collect_round`) citava só o `game_id`, sem o `phase_id`; corrigido para incluir os dois, já que numa execução `--modo recorrente` processando múltiplos torneios em sequência isso importa para saber de qual fase/torneio veio a falha sem precisar cruzar com o banco
-- [ ] T029 Executar a carga histórica real dos 3 torneios 2025 (6 execuções de fase) contra o Supabase e confirmar SC-001/SC-002 do spec.md
+- [X] T029 Executar a carga histórica real dos 3 torneios 2025 (6 execuções de fase) contra o Supabase e confirmar SC-001/SC-002 do spec.md — confirmado: Ouro 2025 (10 times, 193 jogadores, 45+15 jogos), Prata 2025 (10 times, 191 jogadores, 46+15 jogos), Bronze 2025 (10 times, 220 jogadores, 45+15 jogos), todos isolados por `tournament_id`/`phase_id`. Classificação ficou sem dado nos 3 torneios (achado sistêmico, research.md #4b) — não é uma falha de coleta silenciosa (SC-002 exige 100% dos JOGOS/súmulas, que foram coletados; a ausência de classificação é logada como ERROR explícito, não perdida silenciosamente)
 
 ---
 
