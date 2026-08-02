@@ -360,14 +360,29 @@ _STANDINGS_FIELD_MAP = {
 }
 
 
+
+# Campos que dá para derivar de vitorias/derrotas quando a fonte não os expõe
+# como elimination_stats próprios (ver research.md #4c) — nunca usados para
+# recalcular desempate/ordem (isso continua vindo 100% da posição em
+# `team_stats`, intocada), só para preencher duas colunas aritméticas simples:
+# "jogos" (= vitórias + derrotas — basquete não tem empate) e "pontos_fiba"
+# (= 2×vitórias + derrotas — a própria fórmula oficial já documentada no
+# glossário do dashboard, não uma regra inventada aqui).
+_CAMPOS_DERIVAVEIS = {"jogos", "pontos_fiba"}
+
+
 def parse_phase_standings(payload: dict) -> list[dict]:
     """Extrai a classificação já ordenada pela plataforma.
 
     Estrutura real (ver research.md #9): os valores de cada time em
     `eliminations[0].team_stats[].stats` são indexados pelo `id` de
     `elimination_stats`, não por um nome legível — é preciso montar o mapa
-    id -> team_stat_source (filtrando ranking_criteria="overall") antes de
-    extrair jogos/vitórias/derrotas/saldo/pontos FIBA.
+    id -> team_stat_source antes de extrair jogos/vitórias/derrotas/saldo/
+    pontos FIBA. Quando o mesmo `team_stat_source` aparece duplicado (ex.:
+    `points_balance` como critério "overall" e também "head_to_head" em
+    Ouro 2026), a entrada com `ranking_criteria="overall"` é a preferida.
+    Quando aparece uma única vez sem nenhum `ranking_criteria` marcado (torneios
+    2025 — research.md #4c), essa única ocorrência é aceita sem ambiguidade.
     """
     data = _require(payload, "data")
     elimination_stats = _require(data, "elimination_stats")
@@ -375,17 +390,27 @@ def parse_phase_standings(payload: dict) -> list[dict]:
     if not eliminations:
         raise UnexpectedPayloadShape("'eliminations' veio vazio — sem classificação para extrair")
 
-    id_to_field: dict[str, str] = {}
+    por_source: dict[str, list[dict]] = {}
     for criterio in elimination_stats:
         source = criterio.get("team_stat_source")
-        criterio_id = criterio.get("id")
-        if source in _STANDINGS_FIELD_MAP and criterio.get("ranking_criteria") == "overall":
-            id_to_field[criterio_id] = _STANDINGS_FIELD_MAP[source]
+        if source in _STANDINGS_FIELD_MAP:
+            por_source.setdefault(source, []).append(criterio)
+
+    id_to_field: dict[str, str] = {}
+    for source, criterios in por_source.items():
+        overall = next((c for c in criterios if c.get("ranking_criteria") == "overall"), None)
+        if overall is not None:
+            id_to_field[overall["id"]] = _STANDINGS_FIELD_MAP[source]
+        elif len(criterios) == 1:
+            id_to_field[criterios[0]["id"]] = _STANDINGS_FIELD_MAP[source]
+        # múltiplas ocorrências sem nenhuma "overall": ambíguo, não aceita
+        # nenhuma — cai em missing_fields abaixo, falha explícita.
 
     missing_fields = set(_STANDINGS_FIELD_MAP.values()) - set(id_to_field.values())
-    if missing_fields:
+    missing_nao_derivaveis = missing_fields - _CAMPOS_DERIVAVEIS
+    if missing_nao_derivaveis:
         raise UnexpectedPayloadShape(
-            f"elimination_stats não tem os critérios 'overall' esperados: {sorted(missing_fields)}"
+            f"elimination_stats não tem os critérios esperados: {sorted(missing_nao_derivaveis)}"
         )
 
     team_stats = _require(eliminations[0], "team_stats")
@@ -403,6 +428,12 @@ def parse_phase_standings(payload: dict) -> list[dict]:
                     context=context,
                 )
             row[field_name] = _as_float(raw_stats[criterio_id], field_name=field_name, context=context)
+
+        if "jogos" in missing_fields:
+            row["jogos"] = row["vitorias"] + row["derrotas"]
+        if "pontos_fiba" in missing_fields:
+            row["pontos_fiba"] = 2 * row["vitorias"] + row["derrotas"]
+
         rows.append(row)
 
     return rows

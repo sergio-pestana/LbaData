@@ -45,6 +45,20 @@ def test_raises_when_eliminations_is_empty():
         parse_phase_standings(payload)
 
 
+def test_derives_jogos_and_pontos_fiba_when_source_omits_them(phase_standings_sem_overall_payload):
+    """research.md #4c: Ouro/Prata/Bronze 2025 só expõem wins/losses/points_balance
+    (sem ranking_criteria='overall', sem game_played/fiba_group_points) — jogos e
+    pontos_fiba precisam ser derivados de vitórias/derrotas, sem alterar a ordem
+    (que continua vindo 100% da posição em team_stats)."""
+    rows = parse_phase_standings(phase_standings_sem_overall_payload)
+
+    assert len(rows) == 10
+    assert [r["posicao"] for r in rows] == list(range(1, 11))
+    for row in rows:
+        assert row["jogos"] == row["vitorias"] + row["derrotas"]
+        assert row["pontos_fiba"] == 2 * row["vitorias"] + row["derrotas"]
+
+
 def test_raises_when_expected_criteria_missing():
     payload = {
         "data": {

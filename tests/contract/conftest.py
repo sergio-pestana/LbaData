@@ -36,6 +36,14 @@ def phase_standings_payload() -> dict:
     return load_fixture("phase_standings.json")
 
 
+@pytest.fixture
+def phase_standings_sem_overall_payload() -> dict:
+    """Fase real de Ouro 2025 (specs/002-add-series-2025-2026, research.md
+    #4c): só 3 elimination_stats (wins/losses/points_balance), todos com
+    ranking_criteria=None — sem 'game_played'/'fiba_group_points' nenhum."""
+    return load_fixture("phase_standings_sem_criterio_overall.json")
+
+
 # IDs reais correspondentes às fixtures capturadas (ver contracts/go-champs-api-dependency.md)
 KNOWN_PHASE_ID = "ede46bb2-21ac-411b-b07f-b93269bebd37"
 KNOWN_GAME_ID = "1eb4007b-dc78-42aa-a5a0-70bfe476d4e2"

@@ -142,6 +142,47 @@ pontuais e esperadas de súmula individual (`Campo essencial ausente:
 correto do Princípio II: aquele jogo específico falha e é logado, os demais
 jogos da fase continuam sendo processados normalmente.
 
+## 4c. Classificação das séries 2025 — causa raiz encontrada e RESOLVIDA
+
+**O que era**: `GET /v1/phases/{phase_id}` das fases de Classificação de Ouro/
+Prata/Bronze 2025 retorna só 3 `elimination_stats` — `wins`, `losses`,
+`points_balance` — **todos com `ranking_criteria: null`**, nunca `"overall"`.
+`game_played` e `fiba_group_points` não existem nessas fases (confirmado
+contra o payload real das 3, 2026-08-02 — estrutura idêntica nas três, não
+uma particularidade de uma só). O parser original só aceitava um critério
+quando `ranking_criteria == "overall"`, então falhava sempre para esses 3
+torneios.
+
+**Decision**: `parse_phase_standings` agora aceita uma entrada de
+`elimination_stats` mesmo sem `ranking_criteria="overall"`, desde que aquele
+`team_stat_source` apareça **uma única vez** no payload (sem ambiguidade de
+qual critério usar — só quando há duplicata, como o `points_balance`
+"overall" vs. "head_to_head" de Ouro 2026, é que a preferência por "overall"
+importa). E quando `jogos`/`pontos_fiba` não vêm da fonte, são derivados de
+`vitorias`/`derrotas`: `jogos = vitorias + derrotas` (basquete não tem
+empate) e `pontos_fiba = 2×vitorias + derrotas` — a própria fórmula oficial
+da FIBA já documentada no glossário do dashboard (`pages/4_glossario.py`),
+não uma regra inventada agora. **A ordem/posição na classificação continua
+vindo 100% de `team_stats` da fonte, intocada** — nada aqui reordena ou
+recalcula desempate, só preenche duas colunas aritméticas simples a partir
+de campos que a própria fonte já forneceu.
+
+**Validação**: a fórmula foi conferida contra as 8 linhas conhecidas e
+corretas de Ouro 2026 antes de aplicar (bate exatamente em todas: ex. líder
+6V-0D → 12 pts FIBA = 2×6+0). Depois de corrigir o parser, a classificação
+completa das 3 séries 2025 foi coletada com sucesso (10 times cada).
+
+**Rationale**: não conflita com a Assumption de spec.md ("segue o critério
+de desempate da fonte, sem recalcular uma regra própria") — essa assunção é
+sobre a ORDEM/desempate entre times empatados, que não é tocada aqui; jogos
+e pontos FIBA são valores aritméticos determinísticos a partir de campos que
+a fonte já informou, não uma nova regra de ordenação.
+
+**Alternatives considered**: exigir que o mantenedor aceite não ter
+classificação para as séries 2025 — rejeitado assim que a causa raiz e uma
+derivação verificável ficaram claras; não fazia sentido deixar de mostrar um
+dado que dá para calcular corretamente com confiança.
+
 ## 5. Cadência de coleta: recorrente vs. carga histórica única — RESOLVIDO
 
 **Decision**: Torneios com `modo="recorrente"` (Ouro 2026, Prata/Bronze 2026) são

@@ -1,0 +1,163 @@
+{
+  "data": {
+    "draws": [],
+    "elimination_stats": [
+      {
+        "id": "a49dde1f-23bd-4900-80dc-689a7300de0b",
+        "ranking_criteria": null,
+        "ranking_order": 1,
+        "team_stat_source": "wins",
+        "title": "Vitórias"
+      },
+      {
+        "id": "a28728b8-dec5-491c-86fe-5c21cb16cd60",
+        "ranking_criteria": null,
+        "ranking_order": 0,
+        "team_stat_source": "losses",
+        "title": "Derrotas"
+      },
+      {
+        "id": "f96e7dd4-59aa-45fb-bc4b-cbc6a8cb5380",
+        "ranking_criteria": null,
+        "ranking_order": 2,
+        "team_stat_source": "points_balance",
+        "title": "Saldo"
+      }
+    ],
+    "eliminations": [
+      {
+        "id": "f043f173-26b2-4f1b-bb5e-9270d19388f6",
+        "info": null,
+        "order": 1,
+        "team_stats": [
+          {
+            "id": "2cbb144f-f84c-4cb7-a79e-238bf93bfec9",
+            "placeholder": null,
+            "ranking_criteria_used": null,
+            "ranking_stat_used": null,
+            "stats": {
+              "a28728b8-dec5-491c-86fe-5c21cb16cd60": "1",
+              "a49dde1f-23bd-4900-80dc-689a7300de0b": "8",
+              "f96e7dd4-59aa-45fb-bc4b-cbc6a8cb5380": 65
+            },
+            "team_id": "faf8f374-3523-497e-af31-909302102342"
+          },
+          {
+            "id": "47781836-8938-42d8-9395-3ce4e441afd4",
+            "placeholder": null,
+            "ranking_criteria_used": null,
+            "ranking_stat_used": null,
+            "stats": {
+              "a28728b8-dec5-491c-86fe-5c21cb16cd60": 1,
+              "a49dde1f-23bd-4900-80dc-689a7300de0b": 8,
+              "f96e7dd4-59aa-45fb-bc4b-cbc6a8cb5380": 113
+            },
+            "team_id": "081f9949-2d16-4629-b4dc-ae880754e586"
+          },
+          {
+            "id": "5e534515-dbef-4c25-84c8-31234b44635d",
+            "placeholder": null,
+            "ranking_criteria_used": null,
+            "ranking_stat_used": null,
+            "stats": {
+              "a28728b8-dec5-491c-86fe-5c21cb16cd60": 2,
+              "a49dde1f-23bd-4900-80dc-689a7300de0b": 7,
+              "f96e7dd4-59aa-45fb-bc4b-cbc6a8cb5380": 91
+            },
+            "team_id": "2483dcc8-fbbf-4c86-a3f3-8b9dbe67e063"
+          },
+          {
+            "id": "59643c89-aca4-4d59-8391-ca6f501097a7",
+            "placeholder": null,
+            "ranking_criteria_used": null,
+            "ranking_stat_used": null,
+            "stats": {
+              "a28728b8-dec5-491c-86fe-5c21cb16cd60": 4,
+              "a49dde1f-23bd-4900-80dc-689a7300de0b": 5,
+              "f96e7dd4-59aa-45fb-bc4b-cbc6a8cb5380": 20
+            },
+            "team_id": "3c28d339-f4b3-49a2-a1ee-185357f22c8d"
+          },
+          {
+            "id": "ee349cd3-3e23-4f2f-9095-f57c18e5a2c3",
+            "placeholder": null,
+            "ranking_criteria_used": null,
+            "ranking_stat_used": null,
+            "stats": {
+              "a28728b8-dec5-491c-86fe-5c21cb16cd60": 4,
+              "a49dde1f-23bd-4900-80dc-689a7300de0b": 5,
+              "f96e7dd4-59aa-45fb-bc4b-cbc6a8cb5380": 17
+            },
+            "team_id": "f3ba5087-6931-4423-b7c6-99f1c0f8f4f7"
+          },
+          {
+            "id": "e96437f8-8fa7-48a4-b0ca-319d860b4127",
+            "placeholder": null,
+            "ranking_criteria_used": null,
+            "ranking_stat_used": null,
+            "stats": {
+              "a28728b8-dec5-491c-86fe-5c21cb16cd60": 5,
+              "a49dde1f-23bd-4900-80dc-689a7300de0b": 4,
+              "f96e7dd4-59aa-45fb-bc4b-cbc6a8cb5380": 10
+            },
+            "team_id": "5860385d-4fe4-42a5-b034-0c8db1964fed"
+          },
+          {
+            "id": "29af0038-f63c-4eb0-973d-82a88b8a5cfb",
+            "placeholder": null,
+            "ranking_criteria_used": null,
+            "ranking_stat_used": null,
+            "stats": {
+              "a28728b8-dec5-491c-86fe-5c21cb16cd60": 6,
+              "a49dde1f-23bd-4900-80dc-689a7300de0b": 3,
+              "f96e7dd4-59aa-45fb-bc4b-cbc6a8cb5380": -70
+            },
+            "team_id": "6da74528-edf8-4224-acdf-20556bcf2677"
+          },
+          {
+            "id": "213492df-f233-4c9e-b0fe-9072c5196840",
+            "placeholder": null,
+            "ranking_criteria_used": null,
+            "ranking_stat_used": null,
+            "stats": {
+              "a28728b8-dec5-491c-86fe-5c21cb16cd60": 6,
+              "a49dde1f-23bd-4900-80dc-689a7300de0b": 3,
+              "f96e7dd4-59aa-45fb-bc4b-cbc6a8cb5380": -31
+            },
+            "team_id": "6ce2e6db-d61c-4a01-a02b-edcb8cdfbc63"
+          },
+          {
+            "id": "65dcd7dc-6466-487f-80cf-0c453328f628",
+            "placeholder": null,
+            "ranking_criteria_used": null,
+            "ranking_stat_used": null,
+            "stats": {
+              "a28728b8-dec5-491c-86fe-5c21cb16cd60": 7,
+              "a49dde1f-23bd-4900-80dc-689a7300de0b": 2,
+              "f96e7dd4-59aa-45fb-bc4b-cbc6a8cb5380": -107
+            },
+            "team_id": "c62dd2c5-1851-4cf3-91b9-d20560c86109"
+          },
+          {
+            "id": "3ed4ae95-f05a-472c-9fe6-cb71db66ad9b",
+            "placeholder": null,
+            "ranking_criteria_used": null,
+            "ranking_stat_used": null,
+            "stats": {
+              "a28728b8-dec5-491c-86fe-5c21cb16cd60": 8,
+              "a49dde1f-23bd-4900-80dc-689a7300de0b": 1,
+              "f96e7dd4-59aa-45fb-bc4b-cbc6a8cb5380": -108
+            },
+            "team_id": "e69bd95f-16db-43ab-a3e6-38f352498bbe"
+          }
+        ],
+        "title": null
+      }
+    ],
+    "id": "7fc86b0f-36d6-4f8d-bb40-9e00a688b47e",
+    "is_in_progress": false,
+    "order": 1,
+    "title": "Classificação",
+    "type": "elimination"
+  }
+}
