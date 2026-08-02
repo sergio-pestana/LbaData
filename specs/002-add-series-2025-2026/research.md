@@ -100,6 +100,34 @@ classificação de playoffs — fora de escopo desta versão (spec.md, Assumptio
 jogos de playoffs entram nos rankings/evolução de jogador, mas nenhuma tabela de
 classificação é gerada para essa fase.
 
+## 4b. Achado real durante a carga de Bronze 2025: fase de Classificação sem critério 'overall' — EM ABERTO
+
+**O que aconteceu**: ao rodar `python -m collector.run --torneio bronze2025`
+contra a API real (2026-08-02), a fase de Playoffs se comportou exatamente
+como previsto no item 4 (jogos coletados, standings pulado de propósito). Mas
+a fase de **Classificação** (`gera_classificacao=True`, igual ao Ouro 2026 que
+já funcionava em 001) falhou ao processar a classificação: `elimination_stats
+não tem os critérios 'overall' esperados: ['derrotas', 'jogos',
+'pontos_fiba', 'saldo_pontos', 'vitorias']`. Ou seja, nenhum dos 5 critérios
+tinha `ranking_criteria='overall'` no payload desse torneio específico — uma
+estrutura diferente da que `contracts/go-champs-api-dependency.md` documentou
+para Ouro 2026.
+
+**Comportamento observado (correto per Princípio II)**: o erro foi capturado,
+logado como ERROR com a fase afetada, e **não** interrompeu a coleta — os 45
+jogos da fase foram processados normalmente (confirmado via `get_games`); só
+`standings_snapshot` ficou vazio para essa fase.
+
+**Em aberto**: por que Bronze 2025 usa uma nomenclatura de critério diferente
+de Ouro 2026 nesse payload — precisa inspecionar o `elimination_stats` bruto
+dessa fase específica antes de decidir se é preciso ampliar
+`_STANDINGS_FIELD_MAP`/a lógica de seleção de critério em
+`parsers.py:parse_phase_standings`, ou se é uma particularidade só dessa fase.
+Não bloqueia esta feature (times, jogadores e jogos de Bronze 2025 estão
+corretos e completos) — mas a classificação daquele torneio específico fica
+sem dado até isso ser investigado. Rastrear como follow-up antes de fechar a
+Polish (T029).
+
 ## 5. Cadência de coleta: recorrente vs. carga histórica única — RESOLVIDO
 
 **Decision**: Torneios com `modo="recorrente"` (Ouro 2026, Prata/Bronze 2026) são

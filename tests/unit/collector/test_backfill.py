@@ -79,3 +79,52 @@ def test_running_collect_round_twice_does_not_duplicate_game():
     games = get_games([PHASE_ID])
     assert len(games) == 1
     assert str(games[0]["id"]) == GAME_ID
+
+
+PHASE_B_ID = "00000000-0000-0000-0000-0000000000e6"
+
+
+class FailingPhaseClient:
+    """Levanta erro só para a fase `phase_id_que_falha` — usado para provar
+    que uma fase falhando dentro de collect_tournament não impede as demais
+    (T016, FR-008)."""
+
+    def __init__(self, tournament_payload: dict, phase_id_que_falha: str):
+        self._tournament_payload = tournament_payload
+        self._phase_id_que_falha = phase_id_que_falha
+
+    def get(self, path: str, params: dict | None = None):
+        if path == f"/v1/tournaments/{TOURNAMENT_ID}":
+            return self._tournament_payload
+        if path == "/v1/games":
+            phase_id = (params or {}).get("where[phase_id]")
+            if phase_id == self._phase_id_que_falha:
+                raise RuntimeError(f"Falha simulada de rede para a fase {phase_id}")
+            return {"data": []}
+        raise AssertionError(f"Path não esperado: {path}")
+
+
+def test_one_failing_phase_does_not_block_the_others_in_the_same_tournament():
+    from collector.run import collect_tournament
+    from collector.tournaments import Fase, Torneio
+
+    torneio = Torneio(
+        tournament_id=TOURNAMENT_ID,
+        slug="teste-duas-fases",
+        nome="Teste Duas Fases",
+        modo="historico",
+        fases=(
+            Fase(phase_id=PHASE_ID, nome="Classificação", gera_classificacao=True),
+            Fase(phase_id=PHASE_B_ID, nome="Playoffs", gera_classificacao=False),
+        ),
+    )
+    tournament_payload = {"data": {"has_aggregated_player_stats": True, "teams": [], "players": []}}
+    client = FailingPhaseClient(tournament_payload, phase_id_que_falha=PHASE_ID)
+
+    # A asserção principal é não levantar: a falha simulada na 1a fase (Classificação)
+    # é capturada e logada dentro de collect_tournament, e a 2a fase (Playoffs) ainda
+    # é processada na mesma chamada — nenhuma exceção escapa para o chamador.
+    collect_tournament(torneio, client)
+
+    assert get_games([PHASE_ID]) == []  # fase que falhou: nada foi gravado
+    assert get_games([PHASE_B_ID]) == []  # fase sem falha: processada normalmente (sem jogos na fixture)

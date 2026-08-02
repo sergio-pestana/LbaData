@@ -28,6 +28,7 @@ from collector.parsers import (
     parse_team_stats_logs,
     parse_tournament,
 )
+from collector.tournaments import Torneio, get_torneio_by_slug, torneios_por_modo
 from storage.supabase_client import get_connection
 from storage.upserts import (
     insert_standings_snapshot,
@@ -169,18 +170,71 @@ def collect_round(
         conn.close()
 
 
+def collect_tournament(torneio: Torneio, client: GoChampsClient) -> None:
+    """Coleta todas as fases de um torneio (Classificação + Playoffs, quando
+    houver). Uma fase falhando é logada e não impede as demais fases do
+    mesmo torneio de serem processadas (FR-008/FR-016 de
+    specs/002-add-series-2025-2026)."""
+    for fase in torneio.fases:
+        try:
+            logger.info("Coletando torneio '%s', fase '%s' (%s)", torneio.slug, fase.nome, fase.phase_id)
+            collect_round(
+                fase.phase_id,
+                torneio.tournament_id,
+                client=client,
+                gera_classificacao=fase.gera_classificacao,
+            )
+        except Exception:
+            logger.exception(
+                "Falha ao coletar a fase '%s' do torneio '%s' — seguindo para as demais fases/torneios",
+                fase.nome, torneio.slug,
+            )
+
+
+def collect_recorrentes(client: GoChampsClient) -> None:
+    """Processa todos os torneios com modo='recorrente' do registro numa
+    única execução — usado pelo cron (`.github/workflows/collect.yml`)."""
+    for torneio in torneios_por_modo("recorrente"):
+        collect_tournament(torneio, client)
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-    arg_parser = argparse.ArgumentParser(description="Coleta uma rodada da LBA POA Ouro 2026")
+    arg_parser = argparse.ArgumentParser(description="Coleta dados da LBA POA (go-champs)")
     arg_parser.add_argument("--phase-id", dest="phase_id", default=None)
     arg_parser.add_argument("--tournament-id", dest="tournament_id", default=None)
+    arg_parser.add_argument(
+        "--torneio", dest="torneio_slug", default=None,
+        help="Coleta todas as fases de um torneio do registro (ex.: ouro2025) — uso manual, carga histórica",
+    )
+    arg_parser.add_argument(
+        "--modo", dest="modo", default=None, choices=["recorrente"],
+        help="Coleta todos os torneios com este modo no registro (ex.: recorrente)",
+    )
     args = arg_parser.parse_args()
 
     config = CollectorConfig.from_env()
+    client = GoChampsClient(min_interval_seconds=config.request_interval_seconds)
+
+    if args.torneio_slug:
+        torneio = get_torneio_by_slug(args.torneio_slug)
+        logger.info("Iniciando carga do torneio '%s' (%d fase(s))", torneio.slug, len(torneio.fases))
+        collect_tournament(torneio, client)
+        return
+
+    if args.modo == "recorrente":
+        logger.info("Iniciando coleta recorrente de todos os torneios ativos")
+        collect_recorrentes(client)
+        return
+
     phase_id = args.phase_id or config.phase_id
     tournament_id = args.tournament_id or config.tournament_id
-    client = GoChampsClient(min_interval_seconds=config.request_interval_seconds)
+    if not phase_id or not tournament_id:
+        arg_parser.error(
+            "Informe --torneio <slug>, --modo recorrente, ou --phase-id/--tournament-id "
+            "(ou configure LBA_PHASE_ID/LBA_TOURNAMENT_ID no .env)"
+        )
 
     logger.info("Iniciando coleta da fase %s", phase_id)
     collect_round(phase_id, tournament_id, client=client)

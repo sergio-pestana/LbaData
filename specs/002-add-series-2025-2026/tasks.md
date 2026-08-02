@@ -71,10 +71,15 @@ de toda user story desta feature.
 ### Implementation
 
 - [X] T014 [US1] Estender `collect_round` em `src/collector/run.py` para receber `gera_classificacao: bool`; quando `False`, pula a etapa de buscar/parsear/gravar `standings_snapshot` para aquela fase, mas continua coletando jogos e estatísticas normalmente — depende de Foundational (T003-T011)
-- [ ] T015 [US1] Adicionar modo `--torneio <slug>` em `src/collector/run.py`: resolve o `Torneio` correspondente em `TORNEIOS` e chama `collect_round` para cada uma de suas fases, passando o `gera_classificacao` de cada uma — depende de T014
-- [ ] T016 [US1] Isolar falha por fase dentro de `--torneio <slug>`: uma fase falhando (ex.: mudança de schema) é logada explicitamente e não impede o processamento das demais fases do mesmo torneio — depende de T015
+- [X] T015 [US1] Adicionar modo `--torneio <slug>` em `src/collector/run.py`: resolve o `Torneio` correspondente em `TORNEIOS` e chama `collect_round` para cada uma de suas fases, passando o `gera_classificacao` de cada uma — depende de T014
+- [X] T016 [US1] Isolar falha por fase dentro de `--torneio <slug>`: uma fase falhando (ex.: mudança de schema) é logada explicitamente e não impede o processamento das demais fases do mesmo torneio — depende de T015
 
-**Checkpoint**: `python -m collector.run --torneio ouro2025` (e prata2025/bronze2025) coleta as duas fases de cada um, de forma idempotente e resiliente a falha parcial.
+**Checkpoint**: validado contra a API real — `python -m collector.run --torneio
+bronze2025` coletou 10 times, 220 jogadores, 45 jogos (Classificação) + 15
+jogos (Playoffs), sem duplicar e sem que a falha real de classificação da
+fase de Classificação (ver research.md #4b — critério 'overall' ausente
+nessa fase específica, em aberto) impedisse a coleta dos jogos dela nem da
+fase de Playoffs seguinte.
 
 ---
 
