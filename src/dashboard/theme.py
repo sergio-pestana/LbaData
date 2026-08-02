@@ -8,6 +8,7 @@ folha de estilos em cada arquivo (Princípio VI).
 
 from __future__ import annotations
 
+import hashlib
 import statistics
 
 import plotly.graph_objects as go
@@ -23,14 +24,15 @@ def resolver_torneio(nome: str) -> dict:
     """Lógica pura (sem Streamlit) por trás do seletor — separada para ser
     testável sem precisar de um contexto de app rodando (Princípio III).
 
-    Retorna `tournament_id` (para `get_teams`/`get_players`), `phase_ids`
-    (todas as fases do torneio, para `get_games`/`get_player_game_stats`/
-    `get_team_game_stats`) e `phase_id_classificacao` (a fase que gera
-    tabela de classificação, ou `None` se nenhuma gerar — ex.: um torneio só
-    com fases de chaveamento)."""
+    Retorna `nome`, `tournament_id` (para `get_teams`/`get_players`),
+    `phase_ids` (todas as fases do torneio, para `get_games`/
+    `get_player_game_stats`/`get_team_game_stats`) e
+    `phase_id_classificacao` (a fase que gera tabela de classificação, ou
+    `None` se nenhuma gerar — ex.: um torneio só com fases de chaveamento)."""
     torneio = next(t for t in TORNEIOS if t.nome == nome)
     fase_classificacao = fase_de_classificacao(torneio)
     return {
+        "nome": torneio.nome,
         "tournament_id": torneio.tournament_id,
         "phase_ids": [f.phase_id for f in torneio.fases],
         "phase_id_classificacao": fase_classificacao.phase_id if fase_classificacao else None,
@@ -74,14 +76,14 @@ def get_torneio_selecionado() -> dict:
 _CSS = """
 <style>
 :root {
-  --lba-surface: #1c1f24;
-  --lba-surface-2: #23262c;
-  --lba-ink-primary: #f5f0e8;
-  --lba-ink-secondary: #a8a9a3;
-  --lba-ink-muted: #6f716c;
-  --lba-accent: #ff8a4a;
-  --lba-hairline: #33363c;
-  --lba-good: #35c760;
+  --lba-surface: #ffffff;
+  --lba-surface-2: #f4f4f5;
+  --lba-ink-primary: #1a1a1a;
+  --lba-ink-secondary: #55575c;
+  --lba-ink-muted: #86888c;
+  --lba-accent: #e8672c;
+  --lba-hairline: #e2e3e6;
+  --lba-good: #1f9d4a;
 }
 
 .lba-tiles {
@@ -91,7 +93,7 @@ _CSS = """
   margin-bottom: 24px;
 }
 .lba-tile {
-  background: var(--lba-surface);
+  background: var(--lba-surface-2);
   border: 1px solid var(--lba-hairline);
   border-radius: 12px;
   padding: 16px 18px;
@@ -132,6 +134,7 @@ _CSS = """
   background: var(--lba-surface);
   border: 1px solid var(--lba-hairline);
   border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   overflow-x: auto;
 }
 table.lba-table {
@@ -191,6 +194,28 @@ tr.lba-leader td:first-child { box-shadow: inset 3px 0 0 var(--lba-good); }
   color: var(--lba-ink-muted);
   line-height: 1.5;
 }
+.lba-intro {
+  background: var(--lba-surface-2);
+  border: 1px solid var(--lba-hairline);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: var(--lba-ink-secondary);
+  line-height: 1.6;
+}
+.lba-page-desc {
+  font-size: 14px;
+  color: var(--lba-ink-secondary);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+.lba-section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--lba-ink-primary);
+  margin: 22px 0 10px 2px;
+}
 </style>
 """
 
@@ -224,6 +249,20 @@ def section_label(text: str) -> None:
     st.markdown(f'<div class="lba-section-label">{text}</div>', unsafe_allow_html=True)
 
 
+def section_title(text: str) -> None:
+    """Título de seção maior/mais destacado que `section_label` — usado para
+    separar blocos grandes de conteúdo (ex.: "Times" vs. "Jogadores" na
+    página de Estatísticas), não pequenos rótulos de gráfico."""
+    st.markdown(f'<div class="lba-section-title">{text}</div>', unsafe_allow_html=True)
+
+
+def page_description(text: str) -> None:
+    """Parágrafo curto de contexto no topo de uma página (o que ela mostra),
+    em texto simples — não é o disclaimer da Visão geral, é só a descrição
+    da página."""
+    st.markdown(f'<div class="lba-page-desc">{text}</div>', unsafe_allow_html=True)
+
+
 def confidence_badge(baixa_confianca: bool) -> str:
     return '<span class="lba-badge-low">poucos jogos</span>' if baixa_confianca else ""
 
@@ -236,10 +275,52 @@ def player_lookup(players: list[dict]) -> dict:
     return {str(p["id"]): p for p in players}
 
 
+# Paleta de fallback para times sem `cor` na fonte, ou com uma cor branca/
+# quase-branca demais para aparecer num fundo branco (ver research.md do
+# fundo claro) — atribuída de forma determinística por hash do id do time,
+# então o mesmo time sempre cai na mesma cor entre execuções, sem precisar
+# gravar nada a mais no banco.
+_PALETA_FALLBACK = (
+    "#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e",
+    "#8c564b", "#17becf", "#e377c2", "#bcbd22", "#3182bd",
+    "#843c39", "#5254a3", "#8c6d31", "#c49c94", "#7b4173",
+)
+
+
+def _cor_visivel_em_branco(cor: str | None) -> bool:
+    """`False` para cor ausente ou clara demais (perto de branco) — não dá
+    pra enxergar num fundo branco."""
+    if not cor:
+        return False
+    hex_val = cor.lstrip("#")
+    if len(hex_val) != 6:
+        return False
+    try:
+        r, g, b = (int(hex_val[i : i + 2], 16) for i in (0, 2, 4))
+    except ValueError:
+        return False
+    luminancia = 0.299 * r + 0.587 * g + 0.114 * b
+    return luminancia < 235
+
+
+def cor_time(team: dict | None) -> str:
+    """Cor do time para swatches/gráficos: a da fonte, se for visível num
+    fundo branco; senão uma cor estável da paleta de fallback, escolhida por
+    hash do id do time (nunca cinza genérico igual pra todos, mesmo quando
+    nenhum time do torneio tem `cor` cadastrada)."""
+    if team is None:
+        return "#888888"
+    cor = team.get("cor")
+    if _cor_visivel_em_branco(cor):
+        return cor
+    indice = int(hashlib.md5(str(team["id"]).encode()).hexdigest(), 16) % len(_PALETA_FALLBACK)
+    return _PALETA_FALLBACK[indice]
+
+
 def team_cell(team: dict | None) -> str:
     if team is None:
         return '<div class="lba-team-cell"><span class="lba-team-name">?</span></div>'
-    cor = team.get("cor") or "#888888"
+    cor = cor_time(team)
     return (
         f'<div class="lba-team-cell"><span class="lba-swatch" style="background:{cor}"></span>'
         f'<span class="lba-team-name">{team["nome"]}</span>'
@@ -280,6 +361,7 @@ def scatter_with_medians(
     y_title: str,
     height: int = 480,
     y_reversed: bool = False,
+    mostrar_rotulos: bool = False,
 ) -> go.Figure | None:
     """Scatterplot padrão do dashboard: um ponto por item de `pontos`, com
     linhas pontilhadas na mediana de cada eixo (leitura por quadrante).
@@ -288,6 +370,12 @@ def scatter_with_medians(
     na legenda — normalmente o time), `cor` (hex do grupo) e `hover` (texto
     pronto). Uma trace do Plotly por grupo/time — dá legenda nativa (clicável
     para esconder/mostrar) e cor consistente com o resto do dashboard.
+
+    `mostrar_rotulos=True` escreve o nome ao lado de cada ponto (espera uma
+    chave `"rotulo"` em cada item de `pontos`) — usado nos gráficos por
+    jogador, onde vários pontos do mesmo time (mesma cor) só ficam
+    distinguíveis com o nome visível, mesmo com a poluição visual que isso
+    causa (decisão do usuário ao revisar o dashboard).
 
     Nenhum ponto é excluído dos dados, mas o zoom inicial é ajustado para não
     deixar um outlier estatístico esmagar a escala e tornar todo o resto do
@@ -304,32 +392,38 @@ def scatter_with_medians(
 
     grupos: dict[str, dict] = {}
     for p in pontos:
-        grupo = grupos.setdefault(p["grupo"], {"cor": p["cor"], "xs": [], "ys": [], "hover": []})
+        grupo = grupos.setdefault(
+            p["grupo"], {"cor": p["cor"], "xs": [], "ys": [], "hover": [], "rotulos": []}
+        )
         grupo["xs"].append(p[x_key])
         grupo["ys"].append(p[y_key])
         grupo["hover"].append(p["hover"])
+        grupo["rotulos"].append(p.get("rotulo", ""))
 
     fig = go.Figure()
 
     if len(xs) >= 2:
-        fig.add_vline(x=statistics.median(xs), line_width=1, line_dash="dot", line_color="#3a3d43")
-        fig.add_hline(y=statistics.median(ys), line_width=1, line_dash="dot", line_color="#3a3d43")
+        fig.add_vline(x=statistics.median(xs), line_width=1, line_dash="dot", line_color="#c2c4c9")
+        fig.add_hline(y=statistics.median(ys), line_width=1, line_dash="dot", line_color="#c2c4c9")
 
     for nome_grupo, dados in grupos.items():
         fig.add_trace(
             go.Scatter(
                 x=dados["xs"],
                 y=dados["ys"],
-                mode="markers",
+                mode="markers+text" if mostrar_rotulos else "markers",
                 name=nome_grupo,
-                marker=dict(size=12, color=dados["cor"], line=dict(width=1, color="#14161a")),
-                text=dados["hover"],
-                hovertemplate="%{text}<extra></extra>",
+                marker=dict(size=12, color=dados["cor"], line=dict(width=1, color="#ffffff")),
+                text=dados["rotulos"] if mostrar_rotulos else None,
+                textposition="top center",
+                textfont=dict(size=9, color="#2a2b2e"),
+                customdata=dados["hover"],
+                hovertemplate="%{customdata}<extra></extra>",
             )
         )
 
     fig.update_layout(
-        template="plotly_dark",
+        template="plotly_white",
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=10, r=10, t=10, b=10),

@@ -9,7 +9,15 @@ Total/Média.
 import pandas as pd
 import streamlit as st
 
-from dashboard.theme import apply_theme, confidence_badge, get_torneio_selecionado, player_lookup, team_lookup
+from dashboard.theme import (
+    apply_theme,
+    confidence_badge,
+    get_torneio_selecionado,
+    page_description,
+    player_lookup,
+    section_title,
+    team_lookup,
+)
 from modeling.leaderboards import (
     PLAYER_METRIC_LABELS,
     TEAM_METRIC_LABELS,
@@ -18,9 +26,16 @@ from modeling.leaderboards import (
 )
 from storage.reads import get_player_game_stats, get_players, get_team_game_stats, get_teams
 
-apply_theme("Estatísticas de jogadores")
+apply_theme("Estatísticas")
 
 torneio = get_torneio_selecionado()
+
+page_description(
+    "Números de times e jogadores da temporada: ranking de times por qualquer "
+    "métrica, e a tabela completa com todas as estatísticas de cada jogador. "
+    "Não sabe o que alguma sigla ou termo significa?"
+)
+st.page_link("pages/4_glossario.py", label="Ver o glossário de termos", icon="📖")
 
 teams = get_teams(torneio["tournament_id"])
 teams_by_id = team_lookup(teams)
@@ -29,7 +44,7 @@ players_by_id = player_lookup(get_players(torneio["tournament_id"]))
 # ---------------------------------------------------------------------------
 # Ranking de times
 # ---------------------------------------------------------------------------
-st.markdown("<div class='lba-section-label'>Ranking de times</div>", unsafe_allow_html=True)
+section_title("Estatísticas dos times")
 
 metrica_time_label = st.selectbox("Métrica", list(TEAM_METRIC_LABELS.values()), key="metrica_time")
 metrica_time = next(k for k, v in TEAM_METRIC_LABELS.items() if v == metrica_time_label)
@@ -58,7 +73,7 @@ for col, chave, titulo in ((col_total, "total", "Total"), (col_media, "media", "
 # ---------------------------------------------------------------------------
 # Tabela completa de jogadores
 # ---------------------------------------------------------------------------
-st.markdown("<div class='lba-section-label'>Estatísticas por jogador</div>", unsafe_allow_html=True)
+section_title("Estatísticas dos jogadores")
 
 col_time, col_modo = st.columns([2, 1])
 with col_time:

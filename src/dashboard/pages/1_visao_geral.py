@@ -9,9 +9,22 @@ from dashboard.theme import apply_theme, get_torneio_selecionado, render_table, 
 from modeling.standings import current_standings, season_overview
 from storage.reads import get_games, get_latest_standings_snapshot, get_teams
 
-apply_theme("Visão geral")
-
 torneio = get_torneio_selecionado()
+
+apply_theme(f"Visão geral — {torneio['nome']}")
+
+st.markdown(
+    """<div class="lba-intro">
+    Este painel acompanha os jogos e estatísticas da <strong>LBA POA</strong>
+    (Liga de Basquete Amador de Porto Alegre). Os números vêm direto do site
+    onde a própria liga publica o resultado e a súmula de cada partida.
+    <br><br>
+    <strong>Este não é um site oficial da LBA POA</strong> — é um projeto
+    feito por um torcedor do campeonato, sem nenhum vínculo com a
+    organização da liga.
+    </div>""",
+    unsafe_allow_html=True,
+)
 
 games = get_games(torneio["phase_ids"])
 overview = season_overview(games)
