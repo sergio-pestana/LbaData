@@ -1,0 +1,48 @@
+name: Coleta LBA POA Ouro 2026
+
+# Dois agendamentos (horários em UTC — GitHub Actions cron sempre roda em
+# UTC; Porto Alegre é UTC-3, sem horário de verão desde 2019 — research.md #7):
+#   - domingo 22h em Porto Alegre = segunda 01h UTC: coleta principal do fim de semana
+#   - segunda 08h em Porto Alegre = segunda 11h UTC: salvaguarda para jogos que
+#     terminaram tarde no domingo ou tiveram súmula publicada com atraso
+# Ambos chamam a mesma rotina idempotente (Princípio I) — rodar duas vezes não
+# duplica nada, então a salvaguarda não precisa de lógica separada.
+on:
+  schedule:
+    - cron: "0 1 * * 1"
+    - cron: "0 11 * * 1"
+  workflow_dispatch: {}
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Rodar migrations (idempotente)
+        env:
+          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
+          SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
+          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: PYTHONPATH=src python -m storage.migrations.apply
+
+      - name: Coletar rodada
+        env:
+          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
+          SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
+          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          LBA_TOURNAMENT_ID: "5bf23f0b-6768-46ec-bcc1-4cd698105413"
+          LBA_PHASE_ID: "ede46bb2-21ac-411b-b07f-b93269bebd37"
+          COLLECTOR_REQUEST_INTERVAL_SECONDS: "1.5"
+        run: PYTHONPATH=src python -m collector.run
