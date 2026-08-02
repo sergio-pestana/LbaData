@@ -135,7 +135,7 @@ a seleção e mostrou os times/jogadores reais de Bronze 2025 (não os do Ouro
 
 ## Phase Final: Polish & Cross-Cutting Concerns
 
-- [ ] T026 [P] Atualizar `README.md` documentando os modos `--torneio <slug>` e `--modo recorrente` de `collector.run`
+- [X] T026 [P] Atualizar `README.md` documentando os modos `--torneio <slug>` e `--modo recorrente` de `collector.run` (README.md não existia ainda no repositório — T048 de 001 nunca tinha sido feito; criado do zero cobrindo setup, os 3 modos de coleta, dashboard e testes)
 - [ ] T027 [P] Rodar `quickstart.md` (passos 1-5) ponta a ponta e corrigir qualquer lacuna encontrada
 - [ ] T028 [P] Auditar logs do coletor multi-torneio: confirmar que toda falha por fase/torneio identifica explicitamente qual torneio/fase falhou (Princípio II)
 - [ ] T029 Executar a carga histórica real dos 3 torneios 2025 (6 execuções de fase) contra o Supabase e confirmar SC-001/SC-002 do spec.md
