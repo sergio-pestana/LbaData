@@ -28,6 +28,7 @@ from collector.parsers import (
     parse_team_stats_logs,
     parse_tournament,
 )
+from collector.tournaments import Torneio, get_torneio_by_slug, torneios_por_modo
 from storage.supabase_client import get_connection
 from storage.upserts import (
     insert_standings_snapshot,
@@ -75,7 +76,64 @@ def mark_missing_games_as_cancelled(conn, phase_id: str, current_game_ids: set[s
         )
 
 
-def collect_round(phase_id: str, tournament_id: str, client: GoChampsClient | None = None) -> None:
+def _coletar_classificacao(phase_id: str, client: GoChampsClient, conn) -> None:
+    """Busca, parseia e grava o snapshot de classificação de uma fase.
+    Extraído de `collect_round` para ser reusável por `refresh_standings`
+    (republicar só a classificação, sem reprocessar jogos/súmulas já
+    coletados e idempotentes) sem duplicar a lógica."""
+    try:
+        standings_payload = client.get(f"/v1/phases/{phase_id}")
+        standings_rows = parse_phase_standings(standings_payload)
+        coletado_em = datetime.now(timezone.utc)
+        snapshot_rows = [
+            {
+                "coletado_em": coletado_em,
+                "phase_id": phase_id,
+                "team_id": row["team_id"],
+                "posicao": int(row["posicao"]),
+                "jogos": int(row["jogos"]),
+                "vitorias": int(row["vitorias"]),
+                "derrotas": int(row["derrotas"]),
+                "saldo_pontos": int(row["saldo_pontos"]),
+                "pontos_fiba": row["pontos_fiba"],
+            }
+            for row in standings_rows
+        ]
+        insert_standings_snapshot(snapshot_rows, conn=conn)
+        logger.info("Snapshot de classificação gravado (%d times)", len(snapshot_rows))
+    except UnexpectedPayloadShape as exc:
+        logger.error("Falha ao processar classificação da fase %s: %s", phase_id, exc)
+
+
+def refresh_standings(torneio: Torneio, client: GoChampsClient) -> None:
+    """Rebusca e regrava só a classificação das fases do torneio que geram
+    (sem reprocessar times/jogos/súmulas, já coletados e idempotentes) — útil
+    para republicar standings depois de uma correção no parser, sem esperar
+    uma recoleta completa que levaria dezenas de minutos por causa do
+    intervalo mínimo entre requisições (Princípio II)."""
+    conn = get_connection()
+    try:
+        for fase in torneio.fases:
+            if not fase.gera_classificacao:
+                continue
+            logger.info("Rebuscando classificação de '%s', fase '%s'", torneio.slug, fase.nome)
+            _coletar_classificacao(fase.phase_id, client, conn)
+    finally:
+        conn.close()
+
+
+def collect_round(
+    phase_id: str,
+    tournament_id: str,
+    client: GoChampsClient | None = None,
+    *,
+    gera_classificacao: bool = True,
+) -> None:
+    """`gera_classificacao=False` pula a etapa de classificação por completo —
+    usado para fases tipo chaveamento/bracket (ex.: Playoffs) que a fonte não
+    expõe no formato `eliminations` (research.md #4 de
+    specs/002-add-series-2025-2026). A distinção fica explícita na chamada,
+    em vez de tentar buscar a classificação e engolir o erro esperado."""
     client = client or GoChampsClient()
     conn = get_connection()
 
@@ -83,9 +141,9 @@ def collect_round(phase_id: str, tournament_id: str, client: GoChampsClient | No
         tournament_payload = client.get(f"/v1/tournaments/{tournament_id}")
         tournament = parse_tournament(tournament_payload)
         for team in tournament["teams"]:
-            upsert_team(team, conn=conn)
+            upsert_team(team, tournament_id, conn=conn)
         for player in tournament["players"]:
-            upsert_player(player, conn=conn)
+            upsert_player(player, tournament_id, conn=conn)
         logger.info(
             "Roster sincronizado: %d times, %d jogadores",
             len(tournament["teams"]), len(tournament["players"]),
@@ -116,53 +174,100 @@ def collect_round(phase_id: str, tournament_id: str, client: GoChampsClient | No
                     upsert_team_game_stat(row, conn=conn)
             except UnexpectedPayloadShape as exc:
                 logger.error(
-                    "Falha ao processar súmula do jogo %s: %s (contexto=%s)",
-                    game["id"], exc, exc.context,
+                    "Falha ao processar súmula do jogo %s (fase %s): %s (contexto=%s)",
+                    game["id"], phase_id, exc, exc.context,
                 )
                 continue
 
         mark_missing_games_as_cancelled(conn, phase_id, {g["id"] for g in games})
 
-        try:
-            standings_payload = client.get(f"/v1/phases/{phase_id}")
-            standings_rows = parse_phase_standings(standings_payload)
-            coletado_em = datetime.now(timezone.utc)
-            snapshot_rows = [
-                {
-                    "coletado_em": coletado_em,
-                    "phase_id": phase_id,
-                    "team_id": row["team_id"],
-                    "posicao": int(row["posicao"]),
-                    "jogos": int(row["jogos"]),
-                    "vitorias": int(row["vitorias"]),
-                    "derrotas": int(row["derrotas"]),
-                    "saldo_pontos": int(row["saldo_pontos"]),
-                    "pontos_fiba": row["pontos_fiba"],
-                }
-                for row in standings_rows
-            ]
-            insert_standings_snapshot(snapshot_rows, conn=conn)
-            logger.info("Snapshot de classificação gravado (%d times)", len(snapshot_rows))
-        except UnexpectedPayloadShape as exc:
-            logger.error("Falha ao processar classificação da fase %s: %s", phase_id, exc)
+        if not gera_classificacao:
+            logger.info(
+                "Fase %s marcada como sem classificação (ex.: chaveamento/bracket) — "
+                "pulando snapshot de classificação de propósito",
+                phase_id,
+            )
+        else:
+            _coletar_classificacao(phase_id, client, conn)
 
         logger.info("Coleta da fase %s concluída: %d jogos processados", phase_id, len(games))
     finally:
         conn.close()
 
 
+def collect_tournament(torneio: Torneio, client: GoChampsClient) -> None:
+    """Coleta todas as fases de um torneio (Classificação + Playoffs, quando
+    houver). Uma fase falhando é logada e não impede as demais fases do
+    mesmo torneio de serem processadas (FR-008/FR-016 de
+    specs/002-add-series-2025-2026)."""
+    for fase in torneio.fases:
+        try:
+            logger.info("Coletando torneio '%s', fase '%s' (%s)", torneio.slug, fase.nome, fase.phase_id)
+            collect_round(
+                fase.phase_id,
+                torneio.tournament_id,
+                client=client,
+                gera_classificacao=fase.gera_classificacao,
+            )
+        except Exception:
+            logger.exception(
+                "Falha ao coletar a fase '%s' do torneio '%s' — seguindo para as demais fases/torneios",
+                fase.nome, torneio.slug,
+            )
+
+
+def collect_recorrentes(client: GoChampsClient) -> None:
+    """Processa todos os torneios com modo='recorrente' do registro numa
+    única execução — usado pelo cron (`.github/workflows/collect.yml`)."""
+    for torneio in torneios_por_modo("recorrente"):
+        collect_tournament(torneio, client)
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-    arg_parser = argparse.ArgumentParser(description="Coleta uma rodada da LBA POA Ouro 2026")
+    arg_parser = argparse.ArgumentParser(description="Coleta dados da LBA POA (go-champs)")
     arg_parser.add_argument("--phase-id", dest="phase_id", default=None)
     arg_parser.add_argument("--tournament-id", dest="tournament_id", default=None)
+    arg_parser.add_argument(
+        "--torneio", dest="torneio_slug", default=None,
+        help="Coleta todas as fases de um torneio do registro (ex.: ouro2025) — uso manual, carga histórica",
+    )
+    arg_parser.add_argument(
+        "--modo", dest="modo", default=None, choices=["recorrente"],
+        help="Coleta todos os torneios com este modo no registro (ex.: recorrente)",
+    )
+    arg_parser.add_argument(
+        "--so-classificacao", dest="so_classificacao", action="store_true",
+        help="Com --torneio: rebusca só a classificação, sem reprocessar jogos/súmulas já coletados",
+    )
     args = arg_parser.parse_args()
 
     config = CollectorConfig.from_env()
+    client = GoChampsClient(min_interval_seconds=config.request_interval_seconds)
+
+    if args.torneio_slug:
+        torneio = get_torneio_by_slug(args.torneio_slug)
+        if args.so_classificacao:
+            logger.info("Rebuscando só a classificação do torneio '%s'", torneio.slug)
+            refresh_standings(torneio, client)
+            return
+        logger.info("Iniciando carga do torneio '%s' (%d fase(s))", torneio.slug, len(torneio.fases))
+        collect_tournament(torneio, client)
+        return
+
+    if args.modo == "recorrente":
+        logger.info("Iniciando coleta recorrente de todos os torneios ativos")
+        collect_recorrentes(client)
+        return
+
     phase_id = args.phase_id or config.phase_id
     tournament_id = args.tournament_id or config.tournament_id
-    client = GoChampsClient(min_interval_seconds=config.request_interval_seconds)
+    if not phase_id or not tournament_id:
+        arg_parser.error(
+            "Informe --torneio <slug>, --modo recorrente, ou --phase-id/--tournament-id "
+            "(ou configure LBA_PHASE_ID/LBA_TOURNAMENT_ID no .env)"
+        )
 
     logger.info("Iniciando coleta da fase %s", phase_id)
     collect_round(phase_id, tournament_id, client=client)

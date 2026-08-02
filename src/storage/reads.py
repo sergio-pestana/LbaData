@@ -34,10 +34,13 @@ def _query(sql: str, params: tuple = (), conn=None) -> list[dict]:
             conn.close()
 
 
-def get_games(phase_id: str) -> list[dict]:
+def get_games(phase_ids: list[str]) -> list[dict]:
+    """`phase_ids`: uma ou mais fases de um mesmo torneio (um torneio pode ter
+    Classificação + Playoffs — data-model.md) cujos jogos entram na mesma
+    consulta."""
     return _query(
-        "SELECT * FROM games WHERE phase_id = %s ORDER BY rodada_data, id",
-        (phase_id,),
+        "SELECT * FROM games WHERE phase_id = ANY(%s::uuid[]) ORDER BY rodada_data, id",
+        (phase_ids,),
     )
 
 
@@ -67,34 +70,68 @@ def get_standings_history(phase_id: str, team_id: str | None = None) -> list[dic
     )
 
 
-def get_player_game_stats(team_id: str | None = None) -> list[dict]:
+def get_player_game_stats(phase_ids: list[str], team_id: str | None = None) -> list[dict]:
+    """`phase_ids` é obrigatório: antes desta feature esta função não filtrava
+    por fase/torneio nenhum quando chamada sem `team_id`, retornando a tabela
+    inteira — bug de isolamento corrigido aqui (research.md #3 de
+    specs/002-add-series-2025-2026)."""
     if team_id is not None:
         return _query(
-            "SELECT * FROM player_game_stats WHERE time_id_na_partida = %s",
-            (team_id,),
+            """
+            SELECT pgs.* FROM player_game_stats pgs
+            JOIN games g ON g.id = pgs.game_id
+            WHERE g.phase_id = ANY(%s::uuid[]) AND pgs.time_id_na_partida = %s
+            """,
+            (phase_ids, team_id),
         )
-    return _query("SELECT * FROM player_game_stats", ())
+    return _query(
+        """
+        SELECT pgs.* FROM player_game_stats pgs
+        JOIN games g ON g.id = pgs.game_id
+        WHERE g.phase_id = ANY(%s::uuid[])
+        """,
+        (phase_ids,),
+    )
 
 
-def get_teams() -> list[dict]:
-    """Dimensão de times — usada pelo dashboard para mostrar nome/cor em vez
-    do id externo cru."""
-    return _query("SELECT * FROM teams ORDER BY nome", ())
+def get_teams(tournament_id: str) -> list[dict]:
+    """Dimensão de times de um único torneio — usada pelo dashboard para
+    mostrar nome/cor em vez do id externo cru. `tournament_id` é obrigatório
+    (não opcional) para que seja estruturalmente impossível esquecer o
+    isolamento entre torneios (data-model.md, User Story 4)."""
+    return _query(
+        "SELECT * FROM teams WHERE tournament_id = %s ORDER BY nome",
+        (tournament_id,),
+    )
 
 
-def get_players() -> list[dict]:
-    """Dimensão de jogadores — usada pelo dashboard para mostrar nome em vez
-    do id externo cru."""
-    return _query("SELECT * FROM players ORDER BY nome", ())
+def get_players(tournament_id: str) -> list[dict]:
+    """Dimensão de jogadores de um único torneio — mesma regra de get_teams."""
+    return _query(
+        "SELECT * FROM players WHERE tournament_id = %s ORDER BY nome",
+        (tournament_id,),
+    )
 
 
-def get_team_game_stats(team_id: str | None = None) -> list[dict]:
+def get_team_game_stats(phase_ids: list[str], team_id: str | None = None) -> list[dict]:
+    """Mesma correção de isolamento de `get_player_game_stats` (research.md #3)."""
     if team_id is not None:
         return _query(
-            "SELECT * FROM team_game_stats WHERE team_id = %s",
-            (team_id,),
+            """
+            SELECT tgs.* FROM team_game_stats tgs
+            JOIN games g ON g.id = tgs.game_id
+            WHERE g.phase_id = ANY(%s::uuid[]) AND tgs.team_id = %s
+            """,
+            (phase_ids, team_id),
         )
-    return _query("SELECT * FROM team_game_stats", ())
+    return _query(
+        """
+        SELECT tgs.* FROM team_game_stats tgs
+        JOIN games g ON g.id = tgs.game_id
+        WHERE g.phase_id = ANY(%s::uuid[])
+        """,
+        (phase_ids,),
+    )
 
 
 def get_team_game_stats_series(team_id: str) -> list[dict]:

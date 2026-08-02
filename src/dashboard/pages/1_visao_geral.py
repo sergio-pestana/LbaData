@@ -5,15 +5,28 @@ from datetime import datetime, timezone
 
 import streamlit as st
 
-from dashboard.theme import apply_theme, get_phase_id, render_table, team_lookup, team_cell
+from dashboard.theme import apply_theme, get_torneio_selecionado, render_table, team_lookup, team_cell
 from modeling.standings import current_standings, season_overview
 from storage.reads import get_games, get_latest_standings_snapshot, get_teams
 
-apply_theme("Visão geral")
+torneio = get_torneio_selecionado()
 
-phase_id = get_phase_id()
+apply_theme(f"Visão geral — {torneio['nome']}")
 
-games = get_games(phase_id)
+st.markdown(
+    """<div class="lba-intro">
+    Este painel acompanha os jogos e estatísticas da <strong>LBA POA</strong>
+    (Liga de Basquete Amador de Porto Alegre). Os números vêm direto do site
+    onde a própria liga publica o resultado e a súmula de cada partida.
+    <br><br>
+    <strong>Este não é um site oficial da LBA POA</strong> — é um projeto
+    feito por um torcedor do campeonato, sem nenhum vínculo com a
+    organização da liga.
+    </div>""",
+    unsafe_allow_html=True,
+)
+
+games = get_games(torneio["phase_ids"])
 overview = season_overview(games)
 
 total_previsto = overview["jogos_realizados"] + overview["jogos_restantes"]
@@ -39,9 +52,12 @@ with col2:
 
 st.markdown("<div class='lba-section-label'>Classificação</div>", unsafe_allow_html=True)
 
-snapshot = get_latest_standings_snapshot(phase_id)
-teams_by_id = team_lookup(get_teams())
-standings = current_standings(snapshot)
+teams_by_id = team_lookup(get_teams(torneio["tournament_id"]))
+standings = (
+    current_standings(get_latest_standings_snapshot(torneio["phase_id_classificacao"]))
+    if torneio["phase_id_classificacao"]
+    else []
+)
 
 if not standings:
     st.info("Ainda não há classificação coletada para esta fase.")

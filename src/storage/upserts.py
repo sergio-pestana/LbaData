@@ -82,12 +82,16 @@ def _correction_upsert(table: str, row: dict[str, Any], conn=None) -> None:
             conn.close()
 
 
-def upsert_team(team: dict[str, Any], conn: psycopg2.extensions.connection | None = None) -> None:
-    _touch_upsert("teams", team, conn=conn)
+def upsert_team(
+    team: dict[str, Any], tournament_id: str, conn: psycopg2.extensions.connection | None = None
+) -> None:
+    _touch_upsert("teams", {**team, "tournament_id": tournament_id}, conn=conn)
 
 
-def upsert_player(player: dict[str, Any], conn: psycopg2.extensions.connection | None = None) -> None:
-    _touch_upsert("players", player, conn=conn)
+def upsert_player(
+    player: dict[str, Any], tournament_id: str, conn: psycopg2.extensions.connection | None = None
+) -> None:
+    _touch_upsert("players", {**player, "tournament_id": tournament_id}, conn=conn)
 
 
 def upsert_game(game: dict[str, Any], conn: psycopg2.extensions.connection | None = None) -> None:

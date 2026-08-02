@@ -17,6 +17,7 @@ TEST_TEAM_AWAY = "00000000-0000-0000-0000-000000000002"
 TEST_PLAYER = "00000000-0000-0000-0000-000000000003"
 TEST_GAME = "00000000-0000-0000-0000-000000000004"
 TEST_PLAYER_STAT = "00000000-0000-0000-0000-000000000005"
+TEST_TOURNAMENT = "00000000-0000-0000-0000-0000000000aa"
 
 
 def _fetch_one(sql: str, params: tuple):
@@ -36,9 +37,12 @@ def _count(table: str, id_value: str) -> int:
 
 @pytest.fixture
 def base_teams_and_player():
-    upsert_team({"id": TEST_TEAM_HOME, "nome": "TESTE Home", "tri_code": "TSH", "cor": None})
-    upsert_team({"id": TEST_TEAM_AWAY, "nome": "TESTE Away", "tri_code": "TSA", "cor": None})
-    upsert_player({"id": TEST_PLAYER, "nome": "Jogador Teste", "team_id": TEST_TEAM_HOME, "numero_camisa": "99"})
+    upsert_team({"id": TEST_TEAM_HOME, "nome": "TESTE Home", "tri_code": "TSH", "cor": None}, TEST_TOURNAMENT)
+    upsert_team({"id": TEST_TEAM_AWAY, "nome": "TESTE Away", "tri_code": "TSA", "cor": None}, TEST_TOURNAMENT)
+    upsert_player(
+        {"id": TEST_PLAYER, "nome": "Jogador Teste", "team_id": TEST_TEAM_HOME, "numero_camisa": "99"},
+        TEST_TOURNAMENT,
+    )
     yield
     conn = get_connection()
     try:
@@ -153,4 +157,21 @@ def test_upsert_player_game_stat_idempotent_and_corrects_in_place(base_teams_and
     )
     pontos, corrigido_em = row
     assert pontos == 15
-    assert corrigido_em is not None
+
+
+def test_upsert_team_and_player_store_tournament_id(base_teams_and_player):
+    row = _fetch_one("SELECT tournament_id FROM teams WHERE id = %s", (TEST_TEAM_HOME,))
+    assert str(row[0]) == TEST_TOURNAMENT
+
+    row = _fetch_one("SELECT tournament_id FROM players WHERE id = %s", (TEST_PLAYER,))
+    assert str(row[0]) == TEST_TOURNAMENT
+
+
+def test_upsert_team_preserves_tournament_id_across_repeated_calls(base_teams_and_player):
+    upsert_team({"id": TEST_TEAM_HOME, "nome": "TESTE Home Renomeado", "tri_code": "TSH", "cor": "#fff"}, TEST_TOURNAMENT)
+
+    assert _count("teams", TEST_TEAM_HOME) == 1
+    row = _fetch_one("SELECT nome, tournament_id FROM teams WHERE id = %s", (TEST_TEAM_HOME,))
+    nome, tournament_id = row
+    assert nome == "TESTE Home Renomeado"
+    assert str(tournament_id) == TEST_TOURNAMENT

@@ -24,8 +24,8 @@ st.set_page_config(page_title="LBA POA Ouro 2026", page_icon="🏀", layout="wid
 pages = {
     "Análise": [
         st.Page("pages/1_visao_geral.py", title="Visão geral", icon="🏀", default=True),
-        st.Page("pages/2_estatisticas_jogadores.py", title="Estatísticas de jogadores", icon="📊"),
-        st.Page("pages/3_impacto_e_utilizacao.py", title="Impacto e utilização", icon="🎯"),
+        st.Page("pages/2_estatisticas_jogadores.py", title="Estatísticas", icon="📊"),
+        st.Page("pages/3_impacto_e_utilizacao.py", title="Análises avançadas", icon="🎯"),
     ],
     "Ajuda": [
         st.Page("pages/4_glossario.py", title="Glossário", icon="📖"),

@@ -1,0 +1,112 @@
+{
+  "data": {
+    "draws": [
+      {
+        "id": "5e354d4a-604c-449f-85b0-89f891aeda5d",
+        "matches": [
+          {
+            "first_team_id": "faf8f374-3523-497e-af31-909302102342",
+            "first_team_parent_id": null,
+            "first_team_placeholder": null,
+            "first_team_score": "1",
+            "id": "6ec288d9-0c66-4b28-befa-f6d6c8c1697e",
+            "info": null,
+            "name": "SF1",
+            "second_team_id": "3c28d339-f4b3-49a2-a1ee-185357f22c8d",
+            "second_team_parent_id": null,
+            "second_team_placeholder": null,
+            "second_team_score": "2"
+          },
+          {
+            "first_team_id": "081f9949-2d16-4629-b4dc-ae880754e586",
+            "first_team_parent_id": null,
+            "first_team_placeholder": null,
+            "first_team_score": "0",
+            "id": "9f555188-c865-4642-9c95-d6a2b95b1e27",
+            "info": null,
+            "name": "SF2",
+            "second_team_id": "2483dcc8-fbbf-4c86-a3f3-8b9dbe67e063",
+            "second_team_parent_id": null,
+            "second_team_placeholder": null,
+            "second_team_score": "2"
+          }
+        ],
+        "order": 3,
+        "title": "Semi Finais Série Diamante"
+      },
+      {
+        "id": "1ce18a30-efb1-46a0-b2d5-10b6cea1f4d2",
+        "matches": [
+          {
+            "first_team_id": "6da74528-edf8-4224-acdf-20556bcf2677",
+            "first_team_parent_id": null,
+            "first_team_placeholder": null,
+            "first_team_score": "2",
+            "id": "342587da-59ac-490f-8c16-e4f2e422be92",
+            "info": null,
+            "name": "PI1: 7º X 10º",
+            "second_team_id": "e69bd95f-16db-43ab-a3e6-38f352498bbe",
+            "second_team_parent_id": null,
+            "second_team_placeholder": null,
+            "second_team_score": "0"
+          },
+          {
+            "first_team_id": "6ce2e6db-d61c-4a01-a02b-edcb8cdfbc63",
+            "first_team_parent_id": null,
+            "first_team_placeholder": null,
+            "first_team_score": "2",
+            "id": "dc21b542-d123-4ad1-b941-041d4ba48ee4",
+            "info": null,
+            "name": "PI2: 8º X 9º",
+            "second_team_id": "c62dd2c5-1851-4cf3-91b9-d20560c86109",
+            "second_team_parent_id": null,
+            "second_team_placeholder": null,
+            "second_team_score": "0"
+          }
+        ],
+        "order": 1,
+        "title": "Play-In"
+      },
+      {
+        "id": "91b15632-ccc2-4516-b844-cfa3c765a31c",
+        "matches": [
+          {
+            "first_team_id": "f3ba5087-6931-4423-b7c6-99f1c0f8f4f7",
+            "first_team_parent_id": null,
+            "first_team_placeholder": null,
+            "first_team_score": "2",
+            "id": "7a971fc3-95be-4e85-8819-258aa385a8a8",
+            "info": null,
+            "name": "SF1",
+            "second_team_id": "6ce2e6db-d61c-4a01-a02b-edcb8cdfbc63",
+            "second_team_parent_id": null,
+            "second_team_placeholder": null,
+            "second_team_score": "0"
+          },
+          {
+            "first_team_id": "5860385d-4fe4-42a5-b034-0c8db1964fed",
+            "first_team_parent_id": null,
+            "first_team_placeholder": null,
+            "first_team_score": "0",
+            "id": "386cf7c5-0ca9-4d89-a495-e455bb9ef773",
+            "info": null,
+            "name": "SF2",
+            "second_team_id": "6da74528-edf8-4224-acdf-20556bcf2677",
+            "second_team_parent_id": null,
+            "second_team_placeholder": null,
+            "second_team_score": "2"
+          }
+        ],
+        "order": 3,
+        "title": "Semi Finais Série Ouro"
+      }
+    ],
+    "elimination_stats": [],
+    "eliminations": [],
+    "id": "51de7c2b-0be8-4a50-bdee-0ed3f5bacd94",
+    "is_in_progress": true,
+    "order": 2,
+    "title": "Playoffs",
+    "type": "draw"
+  }
+}

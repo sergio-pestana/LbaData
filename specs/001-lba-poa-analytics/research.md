@@ -46,13 +46,21 @@ um registro; qualquer campo ausente/tipo inesperado levanta uma exceção espec�
 afetado — o processamento continua para os demais jogos da rodada. Filtros
 `where[...]` da API (ex.: `phase_id`, `game_id`) não são confiados cegamente: a
 resposta é sempre revalidada localmente (ex.: conferindo que os jogos retornados
-realmente pertencem à `phase_id` esperada) antes de persistir, já que
-`where[organization_slug]`/`where[slug]` em `/v1/tournaments` demonstrou não
-filtrar de forma confiável.
+realmente pertencem à `phase_id` esperada) antes de persistir — princípio mantido
+mesmo depois de reteste, por ser defesa em profundidade contra qualquer schema não
+documentado, não só o filtro abaixo.
+
+Reteste em 2026-08-02 contra `/v1/tournaments`: `where[organization_slug]=lba-poa`
+sozinho (22 resultados, todos de fato da LBA), `where[slug]=ouro2025` sozinho (1
+resultado correto), os dois combinados (1 resultado correto) e valores inexistentes
+em qualquer um dos dois (0 resultados, sem cair silenciosamente para "sem filtro")
+— todos os casos filtraram corretamente. A suspeita anterior de que esses filtros
+não eram confiáveis não se confirmou nesse reteste. Isso não muda o coletor: ele já
+resolve o torneio por `tournament_id` fixo (`run.py:83`), nunca por slug.
 
 **Rationale**: Implementa diretamente o Princípio II ("falhar de forma explícita e
-logada, nunca silenciosamente") e a cautela relatada pelo usuário sobre filtros
-`where[...]` não confiáveis.
+logada, nunca silenciosamente"); a validação local independe de qualquer filtro da
+API ser ou não confiável.
 
 **Alternatives considered**: Validação com `pydantic` — considerada, mas adiada
 como possível refinamento futuro; para o volume atual, validação manual explícita

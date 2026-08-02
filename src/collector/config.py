@@ -11,31 +11,22 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-class MissingConfigError(RuntimeError):
-    """Levantado quando uma variável de ambiente obrigatória não está definida."""
-
-
-def _require_env(name: str) -> str:
-    value = os.environ.get(name)
-    if not value:
-        raise MissingConfigError(
-            f"Variável de ambiente obrigatória '{name}' não definida. "
-            f"Veja .env.example."
-        )
-    return value
-
-
 @dataclass(frozen=True)
 class CollectorConfig:
-    tournament_id: str
-    phase_id: str
+    tournament_id: str | None
+    phase_id: str | None
     request_interval_seconds: float
 
     @classmethod
     def from_env(cls) -> "CollectorConfig":
+        """`LBA_TOURNAMENT_ID`/`LBA_PHASE_ID` agora são opcionais: só fazem
+        sentido no modo de override manual de `collector.run` (uma fase
+        avulsa); os modos `--torneio`/`--modo recorrente` resolvem tudo a
+        partir de `collector/tournaments.py`, sem precisar de env var nenhuma
+        (feature 002 — múltiplos torneios)."""
         return cls(
-            tournament_id=_require_env("LBA_TOURNAMENT_ID"),
-            phase_id=_require_env("LBA_PHASE_ID"),
+            tournament_id=os.environ.get("LBA_TOURNAMENT_ID"),
+            phase_id=os.environ.get("LBA_PHASE_ID"),
             request_interval_seconds=float(
                 os.environ.get("COLLECTOR_REQUEST_INTERVAL_SECONDS", "1.5")
             ),
