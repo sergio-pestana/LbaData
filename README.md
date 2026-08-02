@@ -21,8 +21,12 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-cp .env.example .env
-# preencha SUPABASE_DB_HOST/PORT/NAME/USER/PASSWORD (Session Pooler do Supabase)
+# crie um arquivo .env na raiz com:
+#   SUPABASE_DB_HOST=...       (Session Pooler do Supabase)
+#   SUPABASE_DB_PORT=...
+#   SUPABASE_DB_NAME=...
+#   SUPABASE_DB_USER=...
+#   SUPABASE_DB_PASSWORD=...
 ```
 
 Aplicar o schema (idempotente — seguro rodar de novo a qualquer momento):
