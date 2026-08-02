@@ -91,12 +91,12 @@ fase de Playoffs seguinte.
 
 ### Tests
 
-- [ ] T017 [P] [US2] Teste unitário: modo `--modo recorrente` processa todos os torneios com `modo="recorrente"` do registro; uma falha simulada num torneio não impede o processamento do outro, em `tests/unit/collector/test_run_modes.py`
+- [X] T017 [P] [US2] Teste unitário: modo `--modo recorrente` processa todos os torneios com `modo="recorrente"` do registro; uma falha simulada num torneio não impede o processamento do outro, em `tests/unit/collector/test_run_modes.py`
 
 ### Implementation
 
-- [ ] T018 [US2] Adicionar modo `--modo recorrente` em `src/collector/run.py`: itera todos os `Torneio` com `modo="recorrente"` em `TORNEIOS`, processando cada fase de cada um via o mesmo caminho de T015, capturando e logando falha por torneio sem interromper os demais (FR-008) — depende de T015
-- [ ] T019 [US2] Atualizar `.github/workflows/collect.yml`: o passo "Coletar rodada" passa a chamar `python -m collector.run --modo recorrente` em vez dos `LBA_TOURNAMENT_ID`/`LBA_PHASE_ID` fixos de um único torneio — depende de T018
+- [X] T018 [US2] Adicionar modo `--modo recorrente` em `src/collector/run.py`: itera todos os `Torneio` com `modo="recorrente"` em `TORNEIOS`, processando cada fase de cada um via o mesmo caminho de T015, capturando e logando falha por torneio sem interromper os demais (FR-008) — depende de T015 (implementado junto com T015/T016, ver commit anterior)
+- [X] T019 [US2] Atualizar `.github/workflows/collect.yml`: o passo de coleta passa a chamar `python -m collector.run --modo recorrente` em vez dos `LBA_TOURNAMENT_ID`/`LBA_PHASE_ID` fixos de um único torneio — depende de T018
 
 **Checkpoint**: o cron agendado cobre os dois torneios ativos numa única execução.
 

@@ -1,4 +1,4 @@
-name: Coleta LBA POA Ouro 2026
+name: Coleta LBA POA — torneios ativos
 
 # Dois agendamentos (horários em UTC — GitHub Actions cron sempre roda em
 # UTC; Porto Alegre é UTC-3, sem horário de verão desde 2019 — research.md #7):
@@ -35,14 +35,12 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: PYTHONPATH=src python -m storage.migrations.apply
 
-      - name: Coletar rodada
+      - name: Coletar todos os torneios ativos (modo=recorrente no registro)
         env:
           SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
           SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
           SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
           SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          LBA_TOURNAMENT_ID: "5bf23f0b-6768-46ec-bcc1-4cd698105413"
-          LBA_PHASE_ID: "ede46bb2-21ac-411b-b07f-b93269bebd37"
           COLLECTOR_REQUEST_INTERVAL_SECONDS: "1.5"
-        run: PYTHONPATH=src python -m collector.run
+        run: PYTHONPATH=src python -m collector.run --modo recorrente
