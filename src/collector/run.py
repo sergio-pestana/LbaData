@@ -75,7 +75,18 @@ def mark_missing_games_as_cancelled(conn, phase_id: str, current_game_ids: set[s
         )
 
 
-def collect_round(phase_id: str, tournament_id: str, client: GoChampsClient | None = None) -> None:
+def collect_round(
+    phase_id: str,
+    tournament_id: str,
+    client: GoChampsClient | None = None,
+    *,
+    gera_classificacao: bool = True,
+) -> None:
+    """`gera_classificacao=False` pula a etapa de classificação por completo —
+    usado para fases tipo chaveamento/bracket (ex.: Playoffs) que a fonte não
+    expõe no formato `eliminations` (research.md #4 de
+    specs/002-add-series-2025-2026). A distinção fica explícita na chamada,
+    em vez de tentar buscar a classificação e engolir o erro esperado."""
     client = client or GoChampsClient()
     conn = get_connection()
 
@@ -123,28 +134,35 @@ def collect_round(phase_id: str, tournament_id: str, client: GoChampsClient | No
 
         mark_missing_games_as_cancelled(conn, phase_id, {g["id"] for g in games})
 
-        try:
-            standings_payload = client.get(f"/v1/phases/{phase_id}")
-            standings_rows = parse_phase_standings(standings_payload)
-            coletado_em = datetime.now(timezone.utc)
-            snapshot_rows = [
-                {
-                    "coletado_em": coletado_em,
-                    "phase_id": phase_id,
-                    "team_id": row["team_id"],
-                    "posicao": int(row["posicao"]),
-                    "jogos": int(row["jogos"]),
-                    "vitorias": int(row["vitorias"]),
-                    "derrotas": int(row["derrotas"]),
-                    "saldo_pontos": int(row["saldo_pontos"]),
-                    "pontos_fiba": row["pontos_fiba"],
-                }
-                for row in standings_rows
-            ]
-            insert_standings_snapshot(snapshot_rows, conn=conn)
-            logger.info("Snapshot de classificação gravado (%d times)", len(snapshot_rows))
-        except UnexpectedPayloadShape as exc:
-            logger.error("Falha ao processar classificação da fase %s: %s", phase_id, exc)
+        if not gera_classificacao:
+            logger.info(
+                "Fase %s marcada como sem classificação (ex.: chaveamento/bracket) — "
+                "pulando snapshot de classificação de propósito",
+                phase_id,
+            )
+        else:
+            try:
+                standings_payload = client.get(f"/v1/phases/{phase_id}")
+                standings_rows = parse_phase_standings(standings_payload)
+                coletado_em = datetime.now(timezone.utc)
+                snapshot_rows = [
+                    {
+                        "coletado_em": coletado_em,
+                        "phase_id": phase_id,
+                        "team_id": row["team_id"],
+                        "posicao": int(row["posicao"]),
+                        "jogos": int(row["jogos"]),
+                        "vitorias": int(row["vitorias"]),
+                        "derrotas": int(row["derrotas"]),
+                        "saldo_pontos": int(row["saldo_pontos"]),
+                        "pontos_fiba": row["pontos_fiba"],
+                    }
+                    for row in standings_rows
+                ]
+                insert_standings_snapshot(snapshot_rows, conn=conn)
+                logger.info("Snapshot de classificação gravado (%d times)", len(snapshot_rows))
+            except UnexpectedPayloadShape as exc:
+                logger.error("Falha ao processar classificação da fase %s: %s", phase_id, exc)
 
         logger.info("Coleta da fase %s concluída: %d jogos processados", phase_id, len(games))
     finally:
