@@ -9,7 +9,7 @@ Total/Média.
 import pandas as pd
 import streamlit as st
 
-from dashboard.theme import apply_theme, confidence_badge, player_lookup, team_lookup
+from dashboard.theme import apply_theme, confidence_badge, get_torneio_selecionado, player_lookup, team_lookup
 from modeling.leaderboards import (
     PLAYER_METRIC_LABELS,
     TEAM_METRIC_LABELS,
@@ -20,9 +20,11 @@ from storage.reads import get_player_game_stats, get_players, get_team_game_stat
 
 apply_theme("Estatísticas de jogadores")
 
-teams = get_teams()
+torneio = get_torneio_selecionado()
+
+teams = get_teams(torneio["tournament_id"])
 teams_by_id = team_lookup(teams)
-players_by_id = player_lookup(get_players())
+players_by_id = player_lookup(get_players(torneio["tournament_id"]))
 
 # ---------------------------------------------------------------------------
 # Ranking de times
@@ -32,7 +34,7 @@ st.markdown("<div class='lba-section-label'>Ranking de times</div>", unsafe_allo
 metrica_time_label = st.selectbox("Métrica", list(TEAM_METRIC_LABELS.values()), key="metrica_time")
 metrica_time = next(k for k, v in TEAM_METRIC_LABELS.items() if v == metrica_time_label)
 
-ranking_times = team_metric_ranking(get_team_game_stats(), metrica_time)
+ranking_times = team_metric_ranking(get_team_game_stats(torneio["phase_ids"]), metrica_time)
 
 col_total, col_media = st.columns(2)
 for col, chave, titulo in ((col_total, "total", "Total"), (col_media, "media", "Média por jogo")):
@@ -69,7 +71,7 @@ team_id = None
 if time_escolhido != "Liga inteira":
     team_id = next(t["id"] for t in teams if t["nome"] == time_escolhido)
 
-stats = get_player_game_stats(team_id=str(team_id) if team_id else None)
+stats = get_player_game_stats(torneio["phase_ids"], team_id=str(team_id) if team_id else None)
 tabela = player_stats_table(stats)
 
 if not tabela:

@@ -8,22 +8,68 @@ folha de estilos em cada arquivo (Princípio VI).
 
 from __future__ import annotations
 
-import os
 import statistics
 
 import plotly.graph_objects as go
 import streamlit as st
 from dotenv import load_dotenv
 
+from collector.tournaments import TORNEIOS, fase_de_classificacao
+
 load_dotenv()
 
 
-def get_phase_id() -> str:
-    phase_id = os.environ.get("LBA_PHASE_ID")
-    if not phase_id:
-        st.error("LBA_PHASE_ID não configurado — veja .env.example.")
-        st.stop()
-    return phase_id
+def resolver_torneio(nome: str) -> dict:
+    """Lógica pura (sem Streamlit) por trás do seletor — separada para ser
+    testável sem precisar de um contexto de app rodando (Princípio III).
+
+    Retorna `tournament_id` (para `get_teams`/`get_players`), `phase_ids`
+    (todas as fases do torneio, para `get_games`/`get_player_game_stats`/
+    `get_team_game_stats`) e `phase_id_classificacao` (a fase que gera
+    tabela de classificação, ou `None` se nenhuma gerar — ex.: um torneio só
+    com fases de chaveamento)."""
+    torneio = next(t for t in TORNEIOS if t.nome == nome)
+    fase_classificacao = fase_de_classificacao(torneio)
+    return {
+        "tournament_id": torneio.tournament_id,
+        "phase_ids": [f.phase_id for f in torneio.fases],
+        "phase_id_classificacao": fase_classificacao.phase_id if fase_classificacao else None,
+    }
+
+
+def resolver_slug_inicial(slug_da_url: str | None) -> str:
+    """Slug a usar como seleção inicial do seletor: o da URL, se for
+    conhecido; senão o primeiro torneio do registro. Separado para ser
+    testável sem depender de `st.query_params`."""
+    slugs_validos = {t.slug for t in TORNEIOS}
+    if slug_da_url in slugs_validos:
+        return slug_da_url
+    return TORNEIOS[0].slug
+
+
+def get_torneio_selecionado() -> dict:
+    """Seletor de torneio na sidebar — troca o contexto inteiro do dashboard
+    (User Story 3 de specs/002-add-series-2025-2026).
+
+    Testado manualmente contra os links de navegação nativos do
+    `st.navigation`: nem `st.session_state` isolado nem `st.query_params`
+    isolado sobreviveram de forma confiável à troca de página (os links do
+    menu lateral navegam para a URL "limpa" da página, sem preservar a
+    query string, e o widget perdia a seleção anterior). Guardar a escolha
+    nos dois ao mesmo tempo — e ler de qualquer um que ainda tiver o valor —
+    cobre esse caso."""
+    nomes = [t.nome for t in TORNEIOS]
+    slug_atual = st.session_state.get("torneio_slug") or st.query_params.get("torneio")
+    slug_inicial = resolver_slug_inicial(slug_atual)
+    index_inicial = next(i for i, t in enumerate(TORNEIOS) if t.slug == slug_inicial)
+
+    nome_escolhido = st.sidebar.selectbox("Torneio", nomes, index=index_inicial, key="torneio_nome_widget")
+    torneio = next(t for t in TORNEIOS if t.nome == nome_escolhido)
+
+    st.session_state["torneio_slug"] = torneio.slug
+    st.query_params["torneio"] = torneio.slug
+
+    return resolver_torneio(nome_escolhido)
 
 _CSS = """
 <style>

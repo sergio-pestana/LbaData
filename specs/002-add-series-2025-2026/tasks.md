@@ -108,13 +108,16 @@ fase de Playoffs seguinte.
 
 **Independent Test**: selecionar cada um dos 5 torneios no dashboard e confirmar que classificação, estatísticas de jogadores e gráficos de impacto/utilização mostram só dados daquele torneio (quickstart.md, passo 4).
 
-- [ ] T020 [US3] Implementar seletor de torneio em `src/dashboard/theme.py`: `st.selectbox` sobre `collector.tournaments.TORNEIOS`, guardando a seleção em `st.session_state`; expõe uma função que resolve o torneio selecionado para `tournament_id`, `phase_ids` (todas as fases) e `phase_id_classificacao` (a fase com `gera_classificacao=True`) — depende de Foundational (T003-T011)
-- [ ] T021 [US3] Atualizar `src/dashboard/pages/1_visao_geral.py`: usa `phase_ids` do torneio selecionado para `get_games`, e `phase_id_classificacao` para `get_latest_standings_snapshot`/`get_teams` — depende de T020, T010
-- [ ] T022 [US3] Atualizar `src/dashboard/pages/2_estatisticas_jogadores.py`: `get_teams`, `get_players`, `get_team_game_stats`, `get_player_game_stats` passam `tournament_id`/`phase_ids` do torneio selecionado — depende de T020, T008, T010
-- [ ] T023 [US3] Atualizar `src/dashboard/pages/3_impacto_e_utilizacao.py`: mesma mudança de T022 — depende de T020, T008, T010
-- [ ] T024 [P] [US3] Teste unitário: o resolvedor de torneio selecionado (T020) retorna `phase_ids`/`phase_id_classificacao` corretos para cada um dos 5 torneios do registro, em `tests/unit/dashboard/test_theme_torneio.py`
+- [X] T020 [US3] Implementar seletor de torneio em `src/dashboard/theme.py`: `st.selectbox` sobre `collector.tournaments.TORNEIOS`; expõe `resolver_torneio`/`get_torneio_selecionado` que resolvem `tournament_id`, `phase_ids` (todas as fases) e `phase_id_classificacao` (a fase com `gera_classificacao=True`) — depende de Foundational (T003-T011). A escolha é gravada em `st.session_state` **e** `st.query_params` ao mesmo tempo (ver research.md #5b — nenhum dos dois sozinho sobreviveu de forma confiável aos links de navegação nativos do `st.navigation` num teste manual no navegador)
+- [X] T021 [US3] Atualizar `src/dashboard/pages/1_visao_geral.py`: usa `phase_ids` do torneio selecionado para `get_games`, e `phase_id_classificacao` para `get_latest_standings_snapshot`/`get_teams` — depende de T020, T010
+- [X] T022 [US3] Atualizar `src/dashboard/pages/2_estatisticas_jogadores.py`: `get_teams`, `get_players`, `get_team_game_stats`, `get_player_game_stats` passam `tournament_id`/`phase_ids` do torneio selecionado — depende de T020, T008, T010
+- [X] T023 [US3] Atualizar `src/dashboard/pages/3_impacto_e_utilizacao.py`: mesma mudança de T022 — depende de T020, T008, T010
+- [X] T024 [P] [US3] Teste unitário: o resolvedor de torneio selecionado (T020) retorna `phase_ids`/`phase_id_classificacao` corretos para cada um dos 5 torneios do registro, em `tests/unit/dashboard/test_theme_torneio.py`
 
-**Checkpoint**: trocar de torneio no dashboard troca todos os dados nas 3 páginas.
+**Checkpoint**: validado manualmente no navegador (Streamlit local) — trocar
+para Bronze 2025 na Visão geral e navegar para as outras duas páginas manteve
+a seleção e mostrou os times/jogadores reais de Bronze 2025 (não os do Ouro
+2026) nas 3 páginas; Ouro 2026 continua funcionando sem regressão.
 
 ---
 

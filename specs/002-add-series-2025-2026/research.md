@@ -146,6 +146,32 @@ Princípio VI).
 de implementar, mas rejeitado pelo mantenedor por desperdiçar chamadas à fonte para
 dados que não mudam mais.
 
+## 5b. Seletor de torneio não persiste entre páginas com só session_state OU só query_params — RESOLVIDO
+
+**Decision**: `dashboard/theme.py:get_torneio_selecionado()` grava a escolha
+tanto em `st.session_state` quanto em `st.query_params`, e lê de qualquer um
+dos dois que ainda tiver valor (`st.session_state.get(...) or
+st.query_params.get(...)`).
+
+**Rationale**: testado manualmente no navegador (2026-08-02) contra os links
+de navegação nativos do `st.navigation`/`st.Page`: usar só `key=` em
+`st.selectbox` (documentado como persistente entre páginas via
+`session_state`) fez o seletor voltar para o primeiro torneio a cada troca de
+página — a seleção anterior não sobrevivia. Usar só `st.query_params`
+também falhou pelo motivo oposto: clicar num link do menu lateral gerado
+pelo `st.navigation` navega para a URL "limpa" da página de destino, sem
+preservar a query string existente. Gravar nos dois ao mesmo tempo cobre
+ambos os casos e foi validado ponta a ponta no navegador: selecionar Bronze
+2025 na página "Visão geral" e navegar para "Estatísticas de jogadores" e
+"Impacto e utilização" manteve a seleção e os dados corretos (times reais de
+Bronze 2025, não os do Ouro 2026) nas três páginas.
+
+**Alternatives considered**: Investigar mais a fundo por que `session_state`
+sozinho não persistiu (contraria a documentação do Streamlit) — não
+perseguido; a solução combinada é barata, robusta e já validada, e entender a
+causa raiz exata do comportamento do `st.navigation` não muda a decisão de
+implementação.
+
 ## 6. Registro de torneios como módulo Python estático, não YAML/JSON externo
 
 **Decision**: `collector/tournaments.py` com `@dataclass(frozen=True)` para

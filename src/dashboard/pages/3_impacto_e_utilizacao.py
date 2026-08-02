@@ -14,22 +14,24 @@ visível no hover (decisão do usuário ao revisar o dashboard).
 
 import streamlit as st
 
-from dashboard.theme import apply_theme, player_lookup, scatter_with_medians, section_label, team_lookup
+from dashboard.theme import apply_theme, get_torneio_selecionado, player_lookup, scatter_with_medians, section_label, team_lookup
 from modeling.leaderboards import player_stats_table, team_metric_ranking
 from modeling.usage import usage_index
 from storage.reads import get_player_game_stats, get_players, get_team_game_stats, get_teams
 
 apply_theme("Impacto e utilização")
 
-teams = get_teams()
+torneio = get_torneio_selecionado()
+
+teams = get_teams(torneio["tournament_id"])
 teams_by_id = team_lookup(teams)
-players_by_id = player_lookup(get_players())
+players_by_id = player_lookup(get_players(torneio["tournament_id"]))
 
 nomes_times = [t["nome"] for t in teams]
 times_escolhidos = st.multiselect("Times (para os gráficos por jogador)", nomes_times, default=nomes_times)
 ids_escolhidos = {str(t["id"]) for t in teams if t["nome"] in times_escolhidos}
 
-stats = [row for row in get_player_game_stats() if str(row["time_id_na_partida"]) in ids_escolhidos]
+stats = [row for row in get_player_game_stats(torneio["phase_ids"]) if str(row["time_id_na_partida"]) in ids_escolhidos]
 usage_ranking = {row["player_id"]: row for row in usage_index(stats)}
 tabela = {row["player_id"]: row for row in player_stats_table(stats)}
 
@@ -163,7 +165,7 @@ st.caption(
     "superior direito atacam bem e defendem bem. (Sempre mostra todos os times.)"
 )
 
-team_stats = get_team_game_stats()
+team_stats = get_team_game_stats(torneio["phase_ids"])
 pontos_feitos = team_metric_ranking(team_stats, "pontos")
 pontos_sofridos = team_metric_ranking(team_stats, "pontos_sofridos")
 
