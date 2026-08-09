@@ -1,88 +1,93 @@
 # LBA POA — Plataforma de Acompanhamento e Análise
 
-Coleta, armazena e apresenta dados de basquete da LBA POA (liga amadora de
-Porto Alegre), publicados pela API pública do [go-champs](https://go-champs.com/lba-poa).
-Cobre 5 torneios: Ouro 2026 e Prata/Bronze 2026 (temporadas em andamento,
-coleta recorrente) e Ouro 2025, Prata 2025, Bronze 2025 (temporadas
-encerradas, carga histórica única) — ver
-`specs/002-add-series-2025-2026/contracts/tournament-registry.md` para os
-ids exatos.
+Projeto de torcedor (não afiliado à liga) que transforma os dados públicos
+da LBA POA — liga amadora de basquete de Porto Alegre — num painel de
+estatísticas avançadas, temporada a temporada.
 
-Arquitetura em 4 camadas desacopladas (`src/collector`, `src/storage`,
-`src/modeling`, `src/dashboard` — ver `.specify/memory/constitution.md`,
-Princípio III). Detalhes de decisão técnica ficam em
-`specs/001-lba-poa-analytics/` e `specs/002-add-series-2025-2026/`
-(`spec.md`, `plan.md`, `research.md`, `data-model.md`).
+A liga já publica a súmula completa de cada jogo. O que falta é comparação:
+quem é realmente eficiente, quem está melhorando, o que cada time faz bem
+ou mal. É isso que a plataforma calcula.
 
-## Setup
+## Exemplo do tipo de pergunta que ela responde
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+- **"Esse jogador arremessa muito, mas converte bem?"**
+  → TS% (*True Shooting*), que já pesa o valor extra da cesta de 3 e o
+  custo baixo do lance livre — mais confiável que olhar só o aproveitamento
+  bruto.
 
-# crie um arquivo .env na raiz com:
-#   SUPABASE_DB_HOST=...       (Session Pooler do Supabase)
-#   SUPABASE_DB_PORT=...
-#   SUPABASE_DB_NAME=...
-#   SUPABASE_DB_USER=...
-#   SUPABASE_DB_PASSWORD=...
+- **"Esse time melhorou ou piorou de uma temporada pra outra?"**
+  → mesma métrica, duas temporadas lado a lado. Ex. real encontrado num dos
+  relatórios: um time manteve o volume ofensivo intacto, mas passou a
+  sofrer ~10 pontos a mais por jogo — o motivo real de estar na última
+  colocação, não "falta de sorte".
+
+- **"Quem mais contribui na defesa, já que a súmula não mostra isso
+  direto?"**
+  → um índice próprio (rebote defensivo + roubo de bola + toco, por
+  minuto jogado).
+
+## Métricas criadas (a fonte não tinha nenhuma delas)
+
+A API da liga entrega só a súmula bruta — contagens por jogo (pontos,
+rebotes, arremessos tentados/convertidos, Eficiência, Plus/Minus) e, na
+maioria dos casos, a classificação corrente. Tudo abaixo é calculado por
+cima disso:
+
+| Métrica | Fórmula | O que responde |
+|---|---|---|
+| **TS%** (True Shooting) | `pontos / (2 × (FGA + 0.44 × FTA)) × 100` | Eficiência de arremesso de verdade — pesa o valor extra da cesta de 3 e o custo menor do lance livre, ao contrário do FG% simples. |
+| **Índice de Utilização** | `(2PT + 3PT + LL tentados + turnovers) / minutos` | Quanto um jogador concentra a bola no ataque, sem precisar estimar as posses totais do time. |
+| **Índice de Defesa** | `(rebotes defensivos + roubos + tocos) / minutos` | Proxy de envolvimento defensivo — a fonte não tem nada equivalente a um "defensive rating" por jogador. |
+| **Índice de Impacto** | `z-score(Eficiência) + z-score(Plus/Minus)`, peso igual | Combina produção bruta com o efeito real no placar numa escala comparável (as duas métricas originais têm magnitudes muito diferentes). |
+| **FG2% / FG3% / FT% de temporada** | convertidos ÷ tentados, sobre o total da temporada | Nunca é a média ingênua dos % de cada jogo — isso distorceria quem tem poucas tentativas (ver `research.md`). |
+| **AST/TO** | assistências ÷ turnovers, `None` se turnovers = 0 | Qualidade de decisão com a bola, sem inventar um número quando a divisão não existe. |
+| **Classificação histórica** | snapshot append-only a cada coleta | A fonte só expõe o estado *atual* da tabela — aqui cada coleta grava uma linha nova, então dá pra reconstruir a evolução rodada a rodada. |
+| **Jogos / Pontos FIBA** (só quando a fonte não fornece) | `jogos = V + D`, `pts FIBA = 2×V + D` | Duas temporadas (2025) vêm sem esses campos na classificação — derivados a partir de vitórias/derrotas em vez de deixar a tabela incompleta. |
+
+Toda métrica derivada acima expõe também o número de jogos que a sustenta —
+uma média sobre 2 jogos nunca aparece com a mesma confiança visual que uma
+sobre 15.
+
+## Arquitetura
+
+```
+   Coleta         Armazenamento        Modelagem          Apresentação
+ (API pública  →  (Postgres, com   →  (métricas         →  (dashboard em
+  da liga)         histórico            derivadas)          Streamlit)
+                   preservado)
 ```
 
-Aplicar o schema (idempotente — seguro rodar de novo a qualquer momento):
+Quatro camadas desacopladas, cada uma só falando com a vizinha por meio de
+um contrato estável (schema do banco / retorno de função) — nunca acessando
+estrutura interna da outra.
 
-```bash
-PYTHONPATH=src python -m storage.migrations.apply
-```
+- **Coleta** (`src/collector`) — cliente HTTP sequencial, sem paralelismo,
+  com intervalo mínimo entre requisições e checagem de `robots.txt`. Cada
+  parser valida presença e tipo dos campos essenciais antes de aceitar um
+  registro; campo ausente ou tipo inesperado levanta uma exceção específica
+  e loga o `game_id` afetado — o resto da rodada continua processando. Roda
+  sozinha toda semana via GitHub Actions (cron em UTC, convertido do
+  horário de Porto Alegre).
+- **Armazenamento** (`src/storage`) — Postgres via Supabase, acesso direto
+  por `psycopg2` com `INSERT ... ON CONFLICT (id) DO UPDATE`, usando o id
+  externo da própria fonte como chave — reprocessar um jogo corrige,
+  nunca duplica. Tabelas de fato (jogos, estatísticas) só atualizam quando
+  algo de fato mudou; a classificação é append-only por design.
+- **Modelagem** (`src/modeling`) — funções puras que leem os fatos e
+  devolvem valor + contagem de jogos, sem saber nada de SQL. É aqui que
+  vivem as métricas da tabela acima.
+- **Apresentação** (`src/dashboard`) — Streamlit + Plotly, com seletor de
+  torneio trocando o contexto entre as 5 temporadas/séries suportadas
+  (Ouro 2026, Prata/Bronze 2026, Ouro 2025, Prata 2025, Bronze 2025).
 
-## Coleta
+Testado com `pytest`: testes de contrato validam os parsers contra payloads
+reais capturados da API (sem rede em CI); testes de unidade de
+armazenamento rodam contra o Postgres de verdade, porque não dá pra testar
+`ON CONFLICT` de forma fiel só com mock.
 
-Três modos, todos via `python -m collector.run` (com `PYTHONPATH=src`):
+## Como foi construído
 
-- **`--modo recorrente`** — coleta todos os torneios com `modo="recorrente"`
-  no registro (`src/collector/tournaments.py`: hoje Ouro 2026 e Prata/Bronze
-  2026). É o modo usado pelo cron (`.github/workflows/collect.yml`).
-- **`--torneio <slug>`** — coleta todas as fases de um único torneio do
-  registro (ex.: `--torneio ouro2025`). Uso manual, para a carga histórica
-  única das temporadas encerradas (slugs: `ouro2025`, `prata2025`,
-  `bronze2025`).
-- **`--phase-id <id> --tournament-id <id>`** (ou via env
-  `LBA_PHASE_ID`/`LBA_TOURNAMENT_ID`) — override manual de uma fase avulsa,
-  fora do registro. Uso pontual/depuração.
-
-Todos os modos são idempotentes (Princípio I) — reexecutar não duplica nada.
-
-```bash
-PYTHONPATH=src python -m collector.run --modo recorrente
-PYTHONPATH=src python -m collector.run --torneio bronze2025
-```
-
-## Dashboard
-
-```bash
-PYTHONPATH=src streamlit run src/dashboard/app.py
-```
-
-Um seletor de torneio na sidebar troca o contexto das 3 páginas (Visão
-geral, Estatísticas de jogadores, Impacto e utilização) entre os 5 torneios
-suportados.
-
-## Testes
-
-```bash
-PYTHONPATH=src pytest tests/unit tests/contract
-```
-
-Testes de `tests/unit/storage` e `tests/unit/collector` rodam contra o
-Supabase real configurado no `.env` (não há como testar upserts/`ON
-CONFLICT` de forma fiel sem um Postgres de verdade) — usam ids de teste
-reservados e limpam tudo ao final. `tests/integration/` é manual, roda
-contra a API real do go-champs, e não entra na suíte padrão.
-
-## Documentação
-
-- `specs/001-lba-poa-analytics/` — spec original (torneio único, Ouro 2026).
-- `specs/002-add-series-2025-2026/` — extensão para múltiplos torneios,
-  incluindo o `quickstart.md` com um roteiro de validação manual passo a
-  passo.
-- `.specify/memory/constitution.md` — princípios de engenharia do projeto.
+Construído com **Claude Code**, usando um fluxo de *Spec-Driven Development*
+(spec → plano → tarefas → implementação) — as decisões de arquitetura e
+escopo ficam documentadas em `specs/`, junto com o raciocínio por trás de
+cada uma.
