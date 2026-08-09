@@ -19,7 +19,7 @@ if _SRC_DIR not in sys.path:
 
 import streamlit as st
 
-st.set_page_config(page_title="LBA POA Ouro 2026", page_icon="🏀", layout="wide")
+st.set_page_config(page_title="LBA Analytics", page_icon="🏀", layout="wide")
 
 pages = {
     "Análise": [
