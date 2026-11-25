@@ -1,6 +1,7 @@
 """Upserts idempotentes — Princípio I da constituição.
 
-Todo write usa `ON CONFLICT (id) DO UPDATE`, nunca um INSERT cego. Duas
+Todo write usa `ON CONFLICT ... DO UPDATE`, nunca um INSERT cego — por `id` nas
+dimensões e em games, pela chave natural (jogo + time/jogador) nas estatísticas. Duas
 variantes:
 
 - `_touch_upsert`: para dimensões (teams, players) — atualiza incondicionalmente
@@ -53,19 +54,25 @@ def _touch_upsert(table: str, row: dict[str, Any], conn=None) -> None:
             conn.close()
 
 
-def _correction_upsert(table: str, row: dict[str, Any], conn=None) -> None:
+def _correction_upsert(
+    table: str, row: dict[str, Any], conn=None, conflict_cols: tuple[str, ...] = ("id",)
+) -> None:
+    """`conflict_cols` é a chave que identifica a linha. Para as estatísticas por
+    partida é a chave natural (jogo + time/jogador), não o `id` da fonte: a fonte
+    às vezes reemite o registro de uma súmula corrigida com `id` novo, e casar só
+    por `id` gravava a correção como uma segunda linha (migration 0005). Nesse
+    caso o `id` novo substitui o antigo na mesma linha."""
     columns = list(row.keys())
     col_list = ", ".join(columns)
     placeholders = ", ".join(f"%({c})s" for c in columns)
-    update_set = ", ".join(f"{c} = EXCLUDED.{c}" for c in columns if c != "id")
-    changed_check = " OR ".join(
-        f"{table}.{c} IS DISTINCT FROM EXCLUDED.{c}" for c in columns if c != "id"
-    )
+    updatable = [c for c in columns if c not in conflict_cols]
+    update_set = ", ".join(f"{c} = EXCLUDED.{c}" for c in updatable)
+    changed_check = " OR ".join(f"{table}.{c} IS DISTINCT FROM EXCLUDED.{c}" for c in updatable)
 
     sql = f"""
         INSERT INTO {table} ({col_list})
         VALUES ({placeholders})
-        ON CONFLICT (id) DO UPDATE SET
+        ON CONFLICT ({", ".join(conflict_cols)}) DO UPDATE SET
             {update_set},
             corrigido_em = now()
         WHERE {changed_check}
@@ -99,11 +106,11 @@ def upsert_game(game: dict[str, Any], conn: psycopg2.extensions.connection | Non
 
 
 def upsert_player_game_stat(row: dict[str, Any], conn: psycopg2.extensions.connection | None = None) -> None:
-    _correction_upsert("player_game_stats", row, conn=conn)
+    _correction_upsert("player_game_stats", row, conn=conn, conflict_cols=("game_id", "player_id"))
 
 
 def upsert_team_game_stat(row: dict[str, Any], conn: psycopg2.extensions.connection | None = None) -> None:
-    _correction_upsert("team_game_stats", row, conn=conn)
+    _correction_upsert("team_game_stats", row, conn=conn, conflict_cols=("game_id", "team_id"))
 
 
 def insert_standings_snapshot(

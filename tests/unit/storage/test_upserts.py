@@ -17,6 +17,7 @@ TEST_TEAM_AWAY = "00000000-0000-0000-0000-000000000002"
 TEST_PLAYER = "00000000-0000-0000-0000-000000000003"
 TEST_GAME = "00000000-0000-0000-0000-000000000004"
 TEST_PLAYER_STAT = "00000000-0000-0000-0000-000000000005"
+TEST_PLAYER_STAT_REISSUED = "00000000-0000-0000-0000-000000000006"
 TEST_TOURNAMENT = "00000000-0000-0000-0000-0000000000aa"
 
 
@@ -47,7 +48,7 @@ def base_teams_and_player():
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM player_game_stats WHERE id = %s", (TEST_PLAYER_STAT,))
+            cur.execute("DELETE FROM player_game_stats WHERE game_id = %s", (TEST_GAME,))
             cur.execute("DELETE FROM games WHERE id = %s", (TEST_GAME,))
             cur.execute("DELETE FROM players WHERE id = %s", (TEST_PLAYER,))
             cur.execute("DELETE FROM teams WHERE id IN (%s, %s)", (TEST_TEAM_HOME, TEST_TEAM_AWAY))
@@ -157,6 +158,20 @@ def test_upsert_player_game_stat_idempotent_and_corrects_in_place(base_teams_and
     )
     pontos, corrigido_em = row
     assert pontos == 15
+
+
+def test_player_game_stat_reissued_with_new_id_updates_same_row(base_teams_and_player):
+    """A fonte reemite a estatística de uma súmula corrigida com `id` novo: tem que
+    corrigir a linha existente do (jogo, jogador), não criar uma segunda."""
+    upsert_game(_base_game())
+    upsert_player_game_stat(_base_player_stat(pontos=10))
+    upsert_player_game_stat({**_base_player_stat(pontos=12), "id": TEST_PLAYER_STAT_REISSUED})
+
+    row = _fetch_one(
+        "SELECT COUNT(*), MAX(id::text), MAX(pontos) FROM player_game_stats WHERE game_id = %s AND player_id = %s",
+        (TEST_GAME, TEST_PLAYER),
+    )
+    assert row == (1, TEST_PLAYER_STAT_REISSUED, 12)
 
 
 def test_upsert_team_and_player_store_tournament_id(base_teams_and_player):
